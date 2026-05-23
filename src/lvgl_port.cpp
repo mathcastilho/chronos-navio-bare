@@ -170,7 +170,7 @@ void my_print(lv_log_level_t level, const char *buf) {
 }
 #endif
 
-lv_display_t *lvgl_port_init(void) {
+void lvgl_port_init(void) {
 
   lv_init();
 
@@ -196,5 +196,4 @@ lv_display_t *lvgl_port_init(void) {
   lv_indev_set_read_cb(input, lvgl_port_touch_read);
 #endif
 
-  return display;
 }
