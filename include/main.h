@@ -33,22 +33,7 @@
 #include "Arduino.h"
 #include <lvgl.h>
 
-
-#ifdef M5_STACK_DIAL
-#include "displays/m5_stack.hpp"
-#elif defined(VIEWE_SMARTRING) || defined(VIEWE_KNOB_15) || defined(VIEWE_S3_1_5) || defined(ESPS3_2_06)
-#include "displays/viewe.hpp"
-#define SW_ROTATION
-#elif ELECROW_C3
-#include "displays/generic.hpp"
-#include "elecrow.hpp"
-#elif ELECROW_35
-#include "displays/elecrow_3_5.hpp"
-#elif WT32_SC01_PLUS
-#include "displays/wt32.hpp"
-#else
-#include "displays/generic.hpp"
-#endif
+#include "board_profile.hpp"
 
 
 #define FIRMWARE_VERSION "v0.2.1"
@@ -59,6 +44,4 @@ struct ScreenTimeoutState {
   uint32_t last_activity_ms = 0;
   bool enabled = true;
   bool awake = true;
-  bool wake_touch_active = false;
 };
-

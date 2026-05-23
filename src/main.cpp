@@ -37,28 +37,9 @@
 #include <stdlib.h>
 #include <timber.h>
 
+#include "lvgl_port.hpp"
 #include "main.h"
 #include "navio_ui.h"
-
-#ifndef USE_DYNAMIC_BUFFERS
-#define USE_DYNAMIC_BUFFERS 0
-#endif
-
-#ifndef LV_BUFFER_COUNT
-#define LV_BUFFER_COUNT 2
-#endif
-
-#if LV_BUFFER_COUNT != 1 && LV_BUFFER_COUNT != 2
-#error "LV_BUFFER_COUNT must be 1 or 2"
-#endif
-
-#if USE_DYNAMIC_BUFFERS && !defined(BUFFER_FLAGS)
-#define BUFFER_FLAGS MALLOC_CAP_DEFAULT
-#endif
-
-#if USE_DYNAMIC_BUFFERS
-#include <esp_heap_caps.h>
-#endif
 
 ChronosESP32 watch("Chronos Navio"); // set the bluetooth name
 Preferences prefs;
@@ -69,102 +50,6 @@ uint32_t nav_crc = 0xFFFFFFFF;
 lv_image_dsc_t nav_icon_dsc;
 
 ScreenTimeoutState screen_timeout;
-
-#if !USE_DYNAMIC_BUFFERS
-uint8_t lv_buffer[LV_BUFFER_COUNT][LV_BUFFER_SIZE];
-#endif
-
-static void lv_set_display_buffers(lv_display_t *display) {
-  uint8_t *buffer = NULL;
-  uint8_t *buffer2 = NULL;
-
-#if USE_DYNAMIC_BUFFERS
-  buffer = (uint8_t *)heap_caps_malloc(LV_BUFFER_SIZE, BUFFER_FLAGS);
-#if LV_BUFFER_COUNT == 2
-  buffer2 = (uint8_t *)heap_caps_malloc(LV_BUFFER_SIZE, BUFFER_FLAGS);
-#endif
-
-  if (buffer == NULL || (LV_BUFFER_COUNT == 2 && buffer2 == NULL)) {
-    while (true) {
-      delay(1000);
-    }
-  }
-#else
-  buffer = lv_buffer[0];
-#if LV_BUFFER_COUNT == 2
-  buffer2 = lv_buffer[1];
-#endif
-#endif
-
-  lv_display_set_buffers(display, buffer, buffer2, LV_BUFFER_SIZE,
-                         LV_DISPLAY_RENDER_MODE_PARTIAL);
-}
-
-lv_display_rotation_t get_rotation(uint8_t rotation) {
-  if (rotation > 3)
-    return LV_DISPLAY_ROTATION_0;
-  return (lv_display_rotation_t)rotation;
-}
-
-/* Display flushing */
-void my_disp_flush(lv_display_t *display, const lv_area_t *area,
-                   uint8_t *data) {
-
-  uint32_t w = lv_area_get_width(area);
-  uint32_t h = lv_area_get_height(area);
-
-#ifdef SW_ROTATION
-  lv_display_rotation_t rotation = lv_display_get_rotation(display);
-  lv_area_t rotated_area;
-  if (rotation != LV_DISPLAY_ROTATION_0) {
-    lv_color_format_t cf = lv_display_get_color_format(display);
-    /*RGB565 swapped does not support rotation, use RGB565 instead*/
-    if (cf == LV_COLOR_FORMAT_RGB565_SWAPPED) {
-      cf = LV_COLOR_FORMAT_RGB565;
-    }
-    /*Calculate the position of the rotated area*/
-    rotated_area = *area;
-    lv_display_rotate_area(display, &rotated_area);
-    /*Calculate the source stride (bytes in a line) from the width of the area*/
-    uint32_t src_stride =
-        lv_draw_buf_width_to_stride(lv_area_get_width(area), cf);
-    /*Calculate the stride of the destination (rotated) area too*/
-    uint32_t dest_stride =
-        lv_draw_buf_width_to_stride(lv_area_get_width(&rotated_area), cf);
-    /*Have a buffer to store the rotated area and perform the rotation*/
-    static uint8_t rotated_buf[LV_BUFFER_SIZE];
-    lv_draw_sw_rotate(data, rotated_buf, w, h, src_stride, dest_stride,
-                      rotation, cf);
-    /*Use the rotated area and rotated buffer from now on*/
-    area = &rotated_area;
-    data = rotated_buf;
-  }
-#endif
-
-  if (tft.getStartCount() == 0) {
-    tft.endWrite();
-  }
-
-  tft.pushImageDMA(area->x1, area->y1, area->x2 - area->x1 + 1,
-                   area->y2 - area->y1 + 1, (uint16_t *)data);
-  lv_display_flush_ready(display); /* tell lvgl that flushing is done */
-}
-
-void rounder_event_cb(lv_event_t *e) {
-  lv_area_t *area = lv_event_get_invalidated_area(e);
-  uint16_t x1 = area->x1;
-  uint16_t x2 = area->x2;
-
-  uint16_t y1 = area->y1;
-  uint16_t y2 = area->y2;
-
-  // round the start of coordinate down to the nearest 2M number
-  area->x1 = (x1 >> 1) << 1;
-  area->y1 = (y1 >> 1) << 1;
-  // round the end of coordinate up to the nearest 2N+1 number
-  area->x2 = ((x2 >> 1) << 1) + 1;
-  area->y2 = ((y2 >> 1) << 1) + 1;
-}
 
 static uint8_t brightness_percent_to_level(int32_t value) {
   value = constrain(value, 0, 100);
@@ -227,32 +112,7 @@ static void screen_timeout_task() {
   }
 }
 
-/*Read the touchpad*/
-void my_touchpad_read(lv_indev_t *indev_driver, lv_indev_data_t *data) {
-  uint16_t touchX, touchY;
-  bool touched = tft.getTouch(&touchX, &touchY);
 
-  if (!touched) {
-    screen_timeout.wake_touch_active = false;
-    data->state = LV_INDEV_STATE_RELEASED;
-  } else {
-    bool was_awake = screen_is_awake();
-    screen_activity();
-
-    if (!was_awake || screen_timeout.wake_touch_active) {
-      screen_timeout.wake_touch_active = true;
-      data->state = LV_INDEV_STATE_RELEASED;
-      return;
-    }
-
-    data->state = LV_INDEV_STATE_PRESSED;
-    /*Set the coordinates*/
-    data->point.x = touchX;
-    data->point.y = touchY;
-  }
-}
-
-static uint32_t my_tick(void) { return millis(); }
 
 void configCallback(Config config, uint32_t a, uint32_t b) {
   switch (config) {
@@ -332,8 +192,9 @@ void navio_subject_screen_rotation_change(int32_t value) {
     return;
   }
 
-#ifdef SW_ROTATION
-  lv_display_set_rotation(lv_display_get_default(), get_rotation(value));
+#if BOARD_SW_ROTATION
+  lv_display_set_rotation(lv_display_get_default(),
+                          lvgl_port_get_rotation(value));
 #else
   tft.setRotation(value);
   // screen rotation has changed, invalidate to redraw
@@ -375,12 +236,6 @@ void on_reset_confirm_cb(lv_event_t *e) {
 
 void on_settings_status(bool state) {}
 
-#if LV_USE_LOG == 1
-void my_print(lv_log_level_t level, const char *buf) {
-  // Serial.printf("[LVGL] %s: %s\n", lv_log_level_to_str(level), buf);
-  Serial.write(buf, strlen(buf));
-}
-#endif
 
 void setup() {
 
@@ -388,15 +243,14 @@ void setup() {
 
   prefs.begin("my-app");
 
-#ifdef ELECROW_C3
-  elecrow_c3_init();
-#endif
+  board::before_display_init();
 
   tft.init();
   tft.initDMA();
   tft.startWrite();
   tft.fillScreen(0x0000);
   tft.setBrightness(255);
+  board::after_display_init();
 
   int brightness = prefs.getInt("brightness", 80);
   int language = prefs.getInt("language", 0);
@@ -411,32 +265,11 @@ void setup() {
 
   String app_version = prefs.getString("app_version", "N/A");
 
-  lv_init();
-
-  lv_tick_set_cb(my_tick);
-
-#if LV_USE_LOG == 1
-  lv_log_register_print_cb(my_print);
-#endif
-
-  static lv_display_t *lv_display =
-      lv_display_create(SCREEN_WIDTH, SCREEN_HEIGHT);
-  lv_display_set_color_format(lv_display, LV_COLOR_FORMAT_RGB565_SWAPPED);
-  lv_display_set_flush_cb(lv_display, my_disp_flush);
-
-  lv_set_display_buffers(lv_display);
-  lv_display_add_event_cb(lv_display, rounder_event_cb,
-                          LV_EVENT_INVALIDATE_AREA, NULL);
-
-  static lv_indev_t *lv_input = lv_indev_create();
-  lv_indev_set_type(lv_input, LV_INDEV_TYPE_POINTER);
-  lv_indev_set_read_cb(lv_input, my_touchpad_read);
-
-  lv_obj_t *label = lv_label_create(lv_screen_active());
-  lv_label_set_text(label, "Hello LVGL!");
-  lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+  lvgl_port_set_screen_callbacks(screen_is_awake, screen_activity);
+  lvgl_port_init();
 
   navio_ui_init("");
+  board::after_ui_init();
 
   set_screen(SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -510,4 +343,5 @@ void loop() {
   navio_subject_set_navigation(nav.active);
 
   screen_timeout_task();
+  board::loop();
 }

@@ -1,0 +1,142 @@
+# Display, Touch, and Board Configuration
+
+This project selects hardware at compile time from the PlatformIO environment
+flag, for example `-D ESPS3_1_28=1` or `-D VIEWE_SMARTRING=1`.
+
+## Selection Flow
+
+1. `platformio.ini` defines one board flag per environment.
+2. `include/board_profile.hpp` maps that flag to one file in `include/boards/`.
+3. The board profile defines the board constants, chooses the display panel,
+   chooses the touch driver, and exposes a global `tft` object.
+4. `src/main.cpp` only talks to `tft` and `board::*` hooks.
+
+## Layers
+
+Board constants live at the top of each `include/boards/*.hpp` file under the
+`DEFINES` section.
+
+They include GPIOs, resolution, buffer size, board name, display type, memory
+settings, and vendor init tables that are pure data. Runtime behavior belongs
+in panel, touch, or board hook sections.
+
+Panel headers live in `include/displays/panels/`.
+
+They own pixel output and backlight behavior. Examples:
+
+- `gc9a01_spi.hpp`
+- `ili9488_parallel16.hpp`
+- `co5300_qspi.hpp`
+- `st77916_qspi.hpp`
+- `m5_dial.hpp`
+
+Touch headers live in `include/displays/touch/`.
+
+They own touch-controller setup and reading. Examples:
+
+- `lovyan_cst816s.hpp`
+- `lovyan_ft5x06.hpp`
+- `cstxxx.hpp`
+- `ft6x36.hpp`
+- `cst816.hpp`
+- `none.hpp`
+- `lovyan_none.hpp`
+
+Board profiles live in `include/boards/`.
+
+They compose the hardware pieces and provide board-specific hooks:
+
+```cpp
+namespace board {
+inline void before_display_init(void) {}
+inline void after_display_init(void) {}
+inline void after_ui_init(void) {}
+inline void loop(void) {}
+}
+```
+
+Use those hooks for board-only logic such as power rails, IO expanders,
+encoders, RFID, sensors, or periodic board updates.
+
+Board profiles also expose small capability flags used by the LVGL port:
+
+- `BOARD_HAS_TOUCH`: set to `0` when no touch device should be registered.
+- `BOARD_USE_ROUNDER_CB`: set to `1` for panels, such as AMOLED, that require
+  invalidated LVGL areas to be aligned to even coordinates.
+
+## Adding a Board
+
+Create a board profile:
+
+```cpp
+#pragma once
+
+/*********************
+ *      DEFINES
+ *********************/
+#define SCREEN_WIDTH 240
+#define SCREEN_HEIGHT 240
+#define LV_BUFFER_SIZE (SCREEN_WIDTH * 40)
+#define LV_BUFFER_COUNT 2
+
+/*********************
+ *      INCLUDES
+ *********************/
+#include "displays/display_wrapper.hpp"
+#include "displays/panels/gc9a01_spi.hpp"
+#include "displays/touch/lovyan_cst816s.hpp"
+
+/*********************
+ *      TYPEDEFS
+ *********************/
+using BoardDisplay =
+    display::DisplayWrapper<GC9A01SpiPanel, LovyanCST816STouch>;
+static BoardDisplay tft;
+
+#include "boards/common.hpp"
+
+/*********************
+ *      BOARD HOOKS
+ *********************/
+namespace board {
+inline void before_display_init(void) {}
+inline void after_display_init(void) {}
+inline void after_ui_init(void) {}
+inline void loop(void) {}
+}
+```
+
+Add the profile to `include/board_profile.hpp`, then add a PlatformIO
+environment with a matching `-D` flag.
+
+## Display and Touch Composition
+
+Use `display::DisplayWrapper<Panel, Touch>` for both Arduino_GFX and LovyanGFX
+boards:
+
+```cpp
+using BoardDisplay = display::DisplayWrapper<CO5300QspiPanel, CSTXXXTouch>;
+```
+
+LovyanGFX panels use the same wrapper. Their touch drivers attach themselves to
+the panel during construction:
+
+```cpp
+using BoardDisplay = display::DisplayWrapper<GC9A01SpiPanel, LovyanCST816STouch>;
+```
+
+Use a direct adapter when the board library owns the display and touch, as with
+M5Dial:
+
+```cpp
+static M5DialDisplay tft;
+```
+
+For boards without touch, use `NoTouch` or `LovyanNoTouch`, depending on the
+display backend.
+
+## Pinouts in Board Files
+
+Keep board constants in the board profile even when the list is long. If a board
+needs a large vendor init table, place it in the `DEFINES` section as pure data,
+as `echo_ear.hpp` does.
