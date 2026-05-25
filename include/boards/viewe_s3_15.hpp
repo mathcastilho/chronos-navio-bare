@@ -23,44 +23,24 @@
 #define BUTTON_HOME 0
 
 
-#define LV_BUFFER_SIZE (SCREEN_WIDTH * 100)
-#define LV_BUFFER_COUNT 1
+#define LV_BUFFER_SIZE (SCREEN_WIDTH * 200)
+#define LV_BUFFER_COUNT 2
 
-#define MAX_FILE_OPEN -1
+#define USE_DYNAMIC_BUFFERS 1
 
-#define USE_DYNAMIC_BUFFERS 0
-#define BUFFER_FLAGS -1
+#define BUFFER_FLAGS MALLOC_CAP_SPIRAM
 
+#ifndef BOARD_OEM
 #define BOARD_OEM "Viewe"
 #define BOARD_NAME "S3 1.5\""
 #define DISPLAY_TYPE "AMOLED"
+#define BOARD_HAS_TOUCH 1
 
 #define BOARD_SW_ROTATION 1
 #define BOARD_USE_ROUNDER_CB 1
 #define CO5300_COL_OFFSET 6
 #define CSTXXX_I2C_ADDR 0x15
 
-#ifndef OFFSET_X
-#define OFFSET_X -1
-#endif
-#ifndef OFFSET_Y
-#define OFFSET_Y -1
-#endif
-#ifndef RGB_ORDER
-#define RGB_ORDER false
-#endif
-#ifndef VIBRATION_PIN
-#define VIBRATION_PIN -1
-#endif
-#ifndef BUZZER_PIN
-#define BUZZER_PIN -1
-#endif
-#ifndef ENCODER_A
-#define ENCODER_A -1
-#endif
-#ifndef ENCODER_B
-#define ENCODER_B -1
-#endif
 
 /*********************
  *      INCLUDES
@@ -73,7 +53,7 @@
  *      TYPEDEFS
  *********************/
 using BoardDisplay = display::DisplayWrapper<CO5300QspiPanel, CSTXXXTouch>;
-static BoardDisplay tft;
+extern BoardDisplay tft;
 
 #include "boards/common.hpp"
 
@@ -84,5 +64,7 @@ namespace board {
 inline void before_display_init(void) {}
 inline void after_display_init(void) {}
 inline void after_ui_init(void) {}
+inline bool wakeup_activity(void) { return false; }
+inline bool screen_toggle_requested(void) { return false; }
 inline void loop(void) {}
 } // namespace board

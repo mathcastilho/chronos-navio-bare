@@ -11,22 +11,22 @@
 #define RGB_ORDER false
 
 // touch
-#define I2C_SDA 4
-#define I2C_SCL 5
-#define TP_INT 0
-#define TP_RST 1
+#define I2C_SDA 6
+#define I2C_SCL 7
+#define TP_INT 5
+#define TP_RST 13
 
 // display
 #define TFT_SPI_HOST SPI2_HOST
 
-#define TFT_SCLK 6
-#define TFT_MOSI 7
-#define TFT_MISO -1
-#define TFT_DC 2
-#define TFT_CS 10
-#define TFT_RST -1
+#define TFT_SCLK 10
+#define TFT_MOSI 11
+#define TFT_MISO 12
+#define TFT_DC 8
+#define TFT_CS 9
+#define TFT_RST 14
 
-#define TFT_BL 3
+#define TFT_BL 2
 
 #define VIBRATION_PIN -1
 
@@ -35,31 +35,15 @@
 #define LV_BUFFER_SIZE (SCREEN_WIDTH * 40)
 #define LV_BUFFER_COUNT 2
 
-#define LCD_CS -1
-#define LCD_SCK -1
-#define LCD_SD0 -1
-#define LCD_SD1 -1
-#define LCD_SD2 -1
-#define LCD_SD3 -1
-#define LCD_RST -1
-#define LCD_EN -1
-
-#define TOUCH_SDA -1
-#define TOUCH_SCL -1
-#define TOUCH_RST -1
-#define TOUCH_IRQ -1
-
-#define ENCODER_A -1
-#define ENCODER_B -1
-
-#define MAX_FILE_OPEN -1
 
 #define USE_DYNAMIC_BUFFERS 0
 #define BUFFER_FLAGS -1
 
-#define BOARD_OEM "Guition"
-#define BOARD_NAME "C3 1.28\""
+#ifndef BOARD_OEM
+#define BOARD_OEM "Waveshare"
+#define BOARD_NAME "S3 1.28\""
 #define DISPLAY_TYPE "LCD"
+#define BOARD_HAS_TOUCH 1
 
 /*********************
  *      INCLUDES
@@ -73,7 +57,7 @@
  *********************/
 using BoardDisplay =
     display::DisplayWrapper<GC9A01SpiPanel, LovyanCST816STouch>;
-static BoardDisplay tft;
+extern BoardDisplay tft;
 
 #include "boards/common.hpp"
 
@@ -84,5 +68,7 @@ namespace board {
 inline void before_display_init(void) {}
 inline void after_display_init(void) {}
 inline void after_ui_init(void) {}
+inline bool wakeup_activity(void) { return false; }
+inline bool screen_toggle_requested(void) { return false; }
 inline void loop(void) {}
 } // namespace board

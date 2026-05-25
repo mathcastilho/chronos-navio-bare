@@ -23,8 +23,7 @@ public:
     panel.setRotation(rotation);
     touch.setRotation(rotation);
   }
-  void pushImage(int32_t x, int32_t y, int32_t w, int32_t h,
-                 uint16_t *data) {
+  void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data) {
     panel.pushImage(x, y, w, h, data);
   }
   void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h,

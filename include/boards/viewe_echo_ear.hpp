@@ -5,9 +5,6 @@
  *********************/
 #define SCREEN_WIDTH 360
 #define SCREEN_HEIGHT 360
-#define OFFSET_X 0
-#define OFFSET_Y 0
-#define RGB_ORDER false
 
 // echo ear board
 #define LCD_CS 39
@@ -25,33 +22,12 @@
 #define TOUCH_RST -1
 #define TOUCH_IRQ 40
 
-#define I2C_SDA -1
-#define I2C_SCL -1
-#define TP_INT -1
-#define TP_RST -1
-
-#define TFT_SPI_HOST -1
-
-#define TFT_SCLK -1
-#define TFT_MOSI -1
-#define TFT_MISO -1
-#define TFT_DC -1
-#define TFT_CS -1
-#define TFT_RST -1
-#define TFT_BL -1
-
-#define VIBRATION_PIN -1
-#define BUZZER_PIN -1
-#define ENCODER_A -1
-#define ENCODER_B -1
-#define MAX_FILE_OPEN -1
 
 #define LV_BUFFER_SIZE (SCREEN_WIDTH * 80)
 #define LV_BUFFER_COUNT 2
 #define USE_DYNAMIC_BUFFERS 0
 #define BUFFER_FLAGS -1
 
-#define TFT_BLACK 0x00000
 
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
@@ -273,6 +249,7 @@ static const uint8_t st77916_init[] = {
 
 #define CST816_I2C_ADDR 0x15
 
+
 #ifndef BOARD_OEM
 #define BOARD_OEM "Viewe"
 #endif
@@ -282,6 +259,7 @@ static const uint8_t st77916_init[] = {
 #ifndef DISPLAY_TYPE
 #define DISPLAY_TYPE "LCD"
 #endif
+#define BOARD_HAS_TOUCH 1
 
 /*********************
  *      INCLUDES
@@ -294,7 +272,7 @@ static const uint8_t st77916_init[] = {
  *      TYPEDEFS
  *********************/
 using BoardDisplay = display::DisplayWrapper<ST77916QspiPanel, CST816Touch>;
-static BoardDisplay tft;
+extern BoardDisplay tft;
 
 #include "boards/common.hpp"
 
@@ -305,5 +283,7 @@ namespace board {
 inline void before_display_init(void) {}
 inline void after_display_init(void) {}
 inline void after_ui_init(void) {}
+inline bool wakeup_activity(void) { return false; }
+inline bool screen_toggle_requested(void) { return false; }
 inline void loop(void) {}
 } // namespace board

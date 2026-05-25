@@ -8,6 +8,7 @@
 #define LV_BUFFER_SIZE (SCREEN_WIDTH * 40)
 #define LV_BUFFER_COUNT 2
 
+
 #ifndef BOARD_OEM
 #define BOARD_OEM "Elecrow"
 #endif
@@ -17,6 +18,7 @@
 #ifndef DISPLAY_TYPE
 #define DISPLAY_TYPE "LCD"
 #endif
+#define BOARD_HAS_TOUCH 1
 
 /*********************
  *      INCLUDES
@@ -30,7 +32,7 @@
  *********************/
 using BoardDisplay =
     display::DisplayWrapper<ILI9488Parallel16Panel, LovyanFT5x06Touch>;
-static BoardDisplay tft;
+extern BoardDisplay tft;
 
 #include "boards/common.hpp"
 
@@ -41,5 +43,7 @@ namespace board {
 inline void before_display_init(void) {}
 inline void after_display_init(void) {}
 inline void after_ui_init(void) {}
+inline bool wakeup_activity(void) { return false; }
+inline bool screen_toggle_requested(void) { return false; }
 inline void loop(void) {}
 } // namespace board

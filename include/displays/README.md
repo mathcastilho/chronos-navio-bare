@@ -1,12 +1,14 @@
 # Display, Touch, and Board Configuration
 
 This project selects hardware at compile time from the PlatformIO environment
-flag, for example `-D ESPS3_1_28=1` or `-D VIEWE_SMARTRING=1`.
+by defining `BOARD_PROFILE_INCLUDE`, for example
+`-D BOARD_PROFILE_INCLUDE=\"boards/viewe_smartring.hpp\"`.
 
 ## Selection Flow
 
-1. `platformio.ini` defines one board flag per environment.
-2. `include/board_profile.hpp` maps that flag to one file in `include/boards/`.
+1. `platformio.ini` defines `BOARD_PROFILE_INCLUDE` per environment.
+2. `include/board_profile.hpp` includes that profile, or `boards/default.hpp`
+   when no profile is provided.
 3. The board profile defines the board constants, chooses the display panel,
    chooses the touch driver, and exposes a global `tft` object.
 4. `src/main.cpp` only talks to `tft` and `board::*` hooks.
@@ -139,4 +141,4 @@ display backend.
 
 Keep board constants in the board profile even when the list is long. If a board
 needs a large vendor init table, place it in the `DEFINES` section as pure data,
-as `echo_ear.hpp` does.
+as `viewe_echo_ear.hpp` does.

@@ -25,7 +25,7 @@
 #endif
 
 #if !USE_DYNAMIC_BUFFERS
-static uint8_t lv_buffer[LV_BUFFER_COUNT][LV_BUFFER_SIZE];
+static uint8_t lv_buffer[LV_BUFFER_COUNT][LV_BUFFER_SIZE] __attribute__((aligned(LV_DRAW_BUF_ALIGN)));
 #endif
 
 static LvglPortScreenAwakeFn screen_is_awake_cb = nullptr;
@@ -50,12 +50,14 @@ static void lvgl_port_set_display_buffers(lv_display_t *display) {
   uint8_t *buffer2 = NULL;
 
 #if USE_DYNAMIC_BUFFERS
-  buffer = (uint8_t *)heap_caps_malloc(LV_BUFFER_SIZE, BUFFER_FLAGS);
+  buffer = (uint8_t *)heap_caps_aligned_alloc(LV_DRAW_BUF_ALIGN, LV_BUFFER_SIZE, BUFFER_FLAGS);
 #if LV_BUFFER_COUNT == 2
-  buffer2 = (uint8_t *)heap_caps_malloc(LV_BUFFER_SIZE, BUFFER_FLAGS);
+  buffer2 = (uint8_t *)heap_caps_aligned_alloc(LV_DRAW_BUF_ALIGN, LV_BUFFER_SIZE, BUFFER_FLAGS);
 #endif
 
   if (buffer == NULL || (LV_BUFFER_COUNT == 2 && buffer2 == NULL)) {
+    Serial.println("Failed to allocate LVGL draw buffers");
+    tft.fillScreen(0xF000);
     while (true) {
       delay(1000);
     }
@@ -92,7 +94,7 @@ static void lvgl_port_flush(lv_display_t *display, const lv_area_t *area,
         lv_draw_buf_width_to_stride(lv_area_get_width(area), cf);
     uint32_t dest_stride =
         lv_draw_buf_width_to_stride(lv_area_get_width(&rotated_area), cf);
-    static uint8_t rotated_buf[LV_BUFFER_SIZE];
+    static uint8_t rotated_buf[LV_BUFFER_SIZE] __attribute__((aligned(LV_DRAW_BUF_ALIGN)));
     lv_draw_sw_rotate(data, rotated_buf, w, h, src_stride, dest_stride,
                       rotation, cf);
 
@@ -104,9 +106,9 @@ static void lvgl_port_flush(lv_display_t *display, const lv_area_t *area,
   (void)h;
 #endif
 
-  if (tft.getStartCount() == 0) {
-    tft.endWrite();
-  }
+  // if (tft.getStartCount() == 0) {
+  //   tft.endWrite();
+  // }
 
   tft.pushImageDMA(area->x1, area->y1, area->x2 - area->x1 + 1,
                    area->y2 - area->y1 + 1, (uint16_t *)data);

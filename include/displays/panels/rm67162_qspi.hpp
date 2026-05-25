@@ -4,20 +4,15 @@
 #include <Arduino_GFX_Library.h>
 
 
-#ifndef CO5300_COL_OFFSET
-#define CO5300_COL_OFFSET 6
-#endif
-
-class CO5300QspiPanel {
+class RM67162QspiPanel {
 public:
   Arduino_GFX *gfx;
 
-  CO5300QspiPanel() {
+  RM67162QspiPanel() {
     static Arduino_DataBus *bus = new Arduino_ESP32QSPI(
         LCD_CS, LCD_SCK, LCD_SD0, LCD_SD1, LCD_SD2, LCD_SD3);
 
-    gfx = new Arduino_CO5300(bus, LCD_RST, 0, false, SCREEN_WIDTH,
-                             SCREEN_HEIGHT, CO5300_COL_OFFSET, 0, 0, 0);
+    gfx = new Arduino_RM67162(bus, LCD_RST, 1, false);
   }
 
   bool init(void) {
@@ -42,9 +37,7 @@ public:
   void startWrite(void) {}
   uint32_t getStartCount(void) { return 0; }
   void endWrite(void) {}
-  void setBrightness(uint8_t brightness) {
-    ((Arduino_CO5300 *)gfx)->setBrightness(brightness);
-  }
+  void setBrightness(uint8_t brightness) {}
   void writePixel(int32_t x, int32_t y, const uint16_t color) {
     gfx->writePixel(x, y, color);
   }

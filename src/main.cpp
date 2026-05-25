@@ -83,7 +83,7 @@ static void screen_activity(uint32_t extra_ms = 0) {
 }
 
 static void set_screen_timeout(int32_t value) {
-  screen_timeout.enabled = value < 4;
+  screen_timeout.enabled = BOARD_ENABLE_SCREEN_TIMEOUT && value < 4;
 
   if (value <= 0) {
     screen_timeout.timeout_ms = 5000;
@@ -92,6 +92,21 @@ static void set_screen_timeout(int32_t value) {
   }
 
   screen_activity();
+}
+
+static void board_screen_input_task() {
+  if (board::screen_toggle_requested()) {
+    if (screen_is_awake()) {
+      set_screen_awake(false);
+    } else {
+      screen_activity();
+    }
+    return;
+  }
+
+  if (board::wakeup_activity()) {
+    screen_activity();
+  }
 }
 
 static void screen_timeout_task() {
@@ -181,6 +196,18 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
   }
 }
 
+static uint8_t normalize_screen_rotation(int32_t rotation) {
+  int32_t value = rotation % 4;
+  if (value < 0) {
+    value += 4;
+  }
+  return (uint8_t)value;
+}
+
+static uint8_t display_rotation_from_ui(int32_t rotation) {
+  return normalize_screen_rotation(rotation + BOARD_ROTATION_OFFSET);
+}
+
 void navio_subject_screen_brightness_change(int32_t value) {
   apply_screen_brightness();
   prefs.putInt("brightness", value);
@@ -188,15 +215,20 @@ void navio_subject_screen_brightness_change(int32_t value) {
 
 void navio_subject_screen_rotation_change(int32_t value) {
 
+#if BOARD_ROTATION_LOCKED == 1
+  return;
+#endif
+
   if (SCREEN_WIDTH != SCREEN_HEIGHT && value % 2 != 0) {
     return;
   }
 
-#if BOARD_SW_ROTATION
-  lv_display_set_rotation(lv_display_get_default(),
-                          lvgl_port_get_rotation(value));
+#if BOARD_SW_ROTATION == 1
+  lv_display_set_rotation(
+      lv_display_get_default(),
+      lvgl_port_get_rotation(display_rotation_from_ui(value)));
 #else
-  tft.setRotation(value);
+  tft.setRotation(display_rotation_from_ui(value));
   // screen rotation has changed, invalidate to redraw
   lv_obj_invalidate(lv_screen_active());
 #endif
@@ -218,6 +250,10 @@ void navio_subject_icon_size_change(int32_t value) {
 }
 
 void navio_subject_show_system_time_change(int32_t value) {
+
+  if (!nav.active && !value) {
+    navio_subject_set_nav_text("Chronos");
+  }
   prefs.putInt("show_time", value);
 }
 
@@ -255,6 +291,9 @@ void setup() {
   int brightness = prefs.getInt("brightness", 80);
   int language = prefs.getInt("language", 0);
   int rotation = prefs.getInt("rotation", 0);
+#if BOARD_ROTATION_LOCKED == 1 && BOARD_ROTATION_VALUE >= 0
+  rotation = BOARD_ROTATION_VALUE;
+#endif
   int screen_timeout = prefs.getInt("screen_timeout", 2);
   bool hr24 = prefs.getBool("hr24", false);
   int icon_size = prefs.getInt("icon_size", 0);
@@ -310,6 +349,8 @@ void setup() {
 
   navio_subject_set_firmware_version(FIRMWARE_VERSION);
 
+  navio_subject_set_screen_mode(UI_MODE);
+
   navio_subject_set_chronos_app_version(app_version.c_str());
   navio_subject_set_language(language);
   navio_subject_set_screen_rotation(rotation);
@@ -334,14 +375,19 @@ void loop() {
   lv_timer_handler(); // Update the UI-
   delay(5);
   watch.loop();
+  board::loop();
+  board_screen_input_task();
 
   String time =
       watch.getHourZ() + watch.getTime(":%M ") + watch.getAmPmC(false);
   navio_subject_set_system_time(time.c_str());
 
+  if (!nav.active && navio_subject_get_show_system_time()) {
+    navio_subject_set_nav_text(time.c_str());
+  }
+
   navio_subject_set_connected(watch.isConnected());
   navio_subject_set_navigation(nav.active);
 
   screen_timeout_task();
-  board::loop();
 }
