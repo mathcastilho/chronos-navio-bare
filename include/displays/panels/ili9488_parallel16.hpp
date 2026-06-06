@@ -3,6 +3,8 @@
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
+#include "displays/panels/lovyan_light_config.hpp"
+
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 480
 
@@ -72,7 +74,7 @@ public:
       auto cfg = _light_instance.config();
 
       cfg.pin_bl = 46;
-      cfg.invert = false;
+      cfg.invert = TFT_BL_INVERTED;
       cfg.freq = 44100;
       cfg.pwm_channel = 0;
 

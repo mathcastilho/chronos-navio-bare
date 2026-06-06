@@ -52,6 +52,7 @@
 #define DISPLAY_TYPE "LCD"
 #endif
 #define BOARD_HAS_TOUCH 1
+#define BOARD_HAS_CUSTOM_BRIGHTNESS 1
 
 /*********************
  *      INCLUDES
@@ -135,6 +136,7 @@ namespace board {
 inline void before_display_init(void) { elecrow_c3_init(); }
 inline void after_display_init(void) {}
 inline void after_ui_init(void) {}
+inline void set_brightness(uint8_t value) { set_pin_io(2, value > 0); }
 inline bool wakeup_activity(void) { return false; }
 inline bool screen_toggle_requested(void) { return false; }
 inline void loop(void) {}

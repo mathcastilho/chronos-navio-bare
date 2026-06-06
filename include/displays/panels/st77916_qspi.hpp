@@ -5,6 +5,8 @@
 #include <Arduino_GFX_Library.h>
 #include <LovyanGFX.hpp>
 
+#include "displays/panels/lovyan_light_config.hpp"
+
 class ST77916QspiPanel {
 public:
   Arduino_DataBus *bus;
@@ -19,7 +21,7 @@ public:
 
     auto cfg = light.config();
     cfg.pin_bl = LCD_BL;
-    cfg.invert = true;
+    cfg.invert = TFT_BL_INVERTED;
     cfg.freq = 44100;
     cfg.pwm_channel = 1;
     light.config(cfg);

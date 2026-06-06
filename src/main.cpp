@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <timber.h>
 
+#include "globals.hpp"
 #include "lvgl_port.hpp"
 #include "main.h"
 #include "navio_ui.h"
@@ -51,18 +52,48 @@ lv_image_dsc_t nav_icon_dsc;
 
 ScreenTimeoutState screen_timeout;
 
+static uint32_t physical_internal_ram_kb() {
+#if defined(CONFIG_IDF_TARGET_ESP32)
+  return 520;
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+  return 320;
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+  return 512;
+#elif defined(CONFIG_IDF_TARGET_ESP32C2)
+  return 272;
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+  return 400;
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+  return 512;
+#elif defined(CONFIG_IDF_TARGET_ESP32H2)
+  return 320;
+#elif defined(CONFIG_IDF_TARGET_ESP32P4)
+  return 768;
+#else
+  return 0;
+#endif
+}
+
 static uint8_t brightness_percent_to_level(int32_t value) {
   value = constrain(value, 0, 100);
   return (uint8_t)((value * 255) / 100);
 }
 
+static void set_screen_brightness_level(uint8_t value) {
+#if BOARD_HAS_CUSTOM_BRIGHTNESS == 1
+  board::set_brightness(value);
+#else
+  tft.setBrightness(value);
+#endif
+}
+
 static void apply_screen_brightness() {
   if (!screen_timeout.awake) {
-    tft.setBrightness(0);
+    set_screen_brightness_level(0);
     return;
   }
 
-  tft.setBrightness(
+  set_screen_brightness_level(
       brightness_percent_to_level(navio_subject_get_screen_brightness()));
 }
 
@@ -264,7 +295,7 @@ void navio_subject_show_directions_change(int32_t value) {
   prefs.putInt("show_directions", value);
 }
 
-void on_reset_confirm_cb(lv_event_t *e) {
+void navio_ui_reset_confirm_cb(lv_event_t *e) {
 
   prefs.clear();
   ESP.restart();
@@ -285,7 +316,7 @@ void setup() {
   tft.initDMA();
   tft.startWrite();
   tft.fillScreen(0x0000);
-  tft.setBrightness(255);
+  set_screen_brightness_level(255);
   board::after_display_init();
 
   int brightness = prefs.getInt("brightness", 80);
@@ -310,7 +341,7 @@ void setup() {
   navio_ui_init("");
   board::after_ui_init();
 
-  set_screen(SCREEN_WIDTH, SCREEN_HEIGHT);
+  navio_ui_set_screen(SCREEN_WIDTH, SCREEN_HEIGHT);
 
   lv_screen_load(screen_launch());
 
@@ -339,8 +370,9 @@ void setup() {
   navio_subject_set_board_oem(BOARD_OEM);
   navio_subject_set_board_name(BOARD_NAME);
   navio_subject_set_board_type(ESP.getChipModel());
+  uint32_t ram_kb = physical_internal_ram_kb();
   navio_subject_set_board_ram(
-      (String((ESP.getHeapSize() / 1024.0), 0) + "KB").c_str());
+      ram_kb > 0 ? (String(ram_kb) + "KB").c_str() : "N/A");
   navio_subject_set_board_flash(
       (String((ESP.getFlashChipSize() / (1024.0 * 1024.0)), 0) + "MB").c_str());
   navio_subject_set_board_psram(
@@ -350,6 +382,7 @@ void setup() {
   navio_subject_set_firmware_version(FIRMWARE_VERSION);
 
   navio_subject_set_screen_mode(UI_MODE);
+  navio_subject_set_screen_brightness_supported(!BOARD_HAS_CUSTOM_BRIGHTNESS);
 
   navio_subject_set_chronos_app_version(app_version.c_str());
   navio_subject_set_language(language);

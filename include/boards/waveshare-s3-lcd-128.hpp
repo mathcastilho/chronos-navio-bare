@@ -3,35 +3,60 @@
 /*********************
  *      DEFINES
  *********************/
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 480
+// screen configs
+#define SCREEN_WIDTH 240
+#define SCREEN_HEIGHT 240
+#define OFFSET_X 0
+#define OFFSET_Y 0
+#define RGB_ORDER false
+
+// touch
+#define I2C_SDA 6
+#define I2C_SCL 7
+#define TP_INT 5
+#define TP_RST 13
+
+// display
+#define TFT_SPI_HOST SPI2_HOST
+
+#define TFT_SCLK 10
+#define TFT_MOSI 11
+#define TFT_MISO 12
+#define TFT_DC 8
+#define TFT_CS 9
+#define TFT_RST 14
+
+#define TFT_BL 2
+
+#define VIBRATION_PIN -1
+
+#define BUZZER_PIN -1
+
 #define LV_BUFFER_SIZE (SCREEN_WIDTH * 40)
 #define LV_BUFFER_COUNT 2
 
 
-#ifndef BOARD_OEM
-#define BOARD_OEM "Elecrow"
-#endif
-#ifndef BOARD_NAME
-#define BOARD_NAME "3.5\""
-#endif
-#ifndef DISPLAY_TYPE
+#define USE_DYNAMIC_BUFFERS 0
+#define BUFFER_FLAGS -1
+
+
+#define BOARD_OEM "Waveshare"
+#define BOARD_NAME "S3 1.28\""
 #define DISPLAY_TYPE "LCD"
-#endif
 #define BOARD_HAS_TOUCH 1
 
 /*********************
  *      INCLUDES
  *********************/
 #include "displays/display_wrapper.hpp"
-#include "displays/panels/ili9488_parallel16.hpp"
-#include "displays/touch/lovyan_ft5x06.hpp"
+#include "displays/panels/gc9a01_spi.hpp"
+#include "displays/touch/lovyan_cst816s.hpp"
 
 /*********************
  *      TYPEDEFS
  *********************/
 using BoardDisplay =
-    display::DisplayWrapper<ILI9488Parallel16Panel, LovyanFT5x06Touch>;
+    display::DisplayWrapper<GC9A01SpiPanel, LovyanCST816STouch>;
 extern BoardDisplay tft;
 
 #include "boards/common.hpp"

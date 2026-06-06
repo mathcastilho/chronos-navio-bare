@@ -16,6 +16,7 @@
 #define LCD_RST -1
 // #define LCD_EN 11
 #define LCD_BL 42
+#define TFT_BL_INVERTED true
 
 #define TOUCH_SDA 2
 #define TOUCH_SCL 1

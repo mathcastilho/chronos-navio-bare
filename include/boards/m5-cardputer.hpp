@@ -34,7 +34,7 @@
 /*********************
  *      INCLUDES
  *********************/
-#include "displays/panels/m5_stack.hpp"
+#include "displays/panels/m5_cardputer.hpp"
 
 /*********************
  *      TYPEDEFS
@@ -52,6 +52,8 @@ inline void before_display_init(void) {}
 inline void after_display_init(void) { tft.setRotation(BOARD_ROTATION_VALUE); }
 inline void after_ui_init(void) {}
 inline bool wakeup_activity(void) { return false; }
-inline bool screen_toggle_requested(void) { return M5.BtnA.wasPressed(); }
-inline void loop(void) { M5.update(); }
+inline bool screen_toggle_requested(void) { 
+    return M5Cardputer.Keyboard.isChange() && M5Cardputer.Keyboard.isKeyPressed('`'); 
+}
+inline void loop(void) { M5Cardputer.update(); }
 } // namespace board

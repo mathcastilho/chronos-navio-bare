@@ -36,7 +36,7 @@
 #include "board_profile.hpp"
 
 
-#define FIRMWARE_VERSION "v0.2.1"
+#define FIRMWARE_VERSION "v1.0.0"
 
 
 struct ScreenTimeoutState {

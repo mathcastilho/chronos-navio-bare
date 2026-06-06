@@ -39,25 +39,12 @@ Import("env")
 sep = os.sep
 
 FILE_PATH = Path(f"include{sep}main.h")
-PIO_INI_PATH = Path("platformio.ini")
 FIRMWARE_JSON_PATH = Path(f"firmware{sep}firmware.json")
 
 print("Extra Script")
 
-def get_env_name(env_name):
-    with open(PIO_INI_PATH) as f:
-        content = f.read()
 
-    pattern = rf"default_envs\s*=\s*{re.escape(env_name)}\s*;\s*(.+)"
-    match = re.search(pattern, content)
-
-    if match:
-        description = match.group(1).strip()
-        return description
-    else:
-        return env_name
-
-def merge_bins(pairs, out_path, new_pairs, chip, env):
+def merge_bins(pairs, out_path, new_pairs, chip, env, version):
     """
     Merge ESP32 .bin segments into one file starting from the lowest offset.
 
@@ -97,12 +84,11 @@ def merge_bins(pairs, out_path, new_pairs, chip, env):
     data = {}
     data[env] = {}
     data[env]["id"] = env
-    data[env]["name"] = get_env_name(env)
     data[env]["file"] = f"{out_path.split(sep)[-1]}"
     data[env]["address"] = f"0x{min_off:X}"
     data[env]["size"] = total_size
     data[env]["chip"] = chip
-
+    data[env]["version"] = version
 
     existing_data = {}
     if os.path.isfile(FIRMWARE_JSON_PATH):
@@ -162,9 +148,9 @@ def after_build(source, target, env):
 
     
     info = version_utils(FILE_PATH)
-    vers = f"{info['version']}"
+    version = f"{info['version']}"
 
-    merged_path = f"{dest_dir}{sep}{env_name}_{vers}.bin"
+    merged_path = f"{dest_dir}{sep}{env_name}_{version}.bin"
 
     # Get full upload command (PlatformIO’s real flash command)
     upload_cmd = env.subst("$UPLOADCMD") + f" {str(source[0])}"
@@ -182,7 +168,7 @@ def after_build(source, target, env):
         print(upload_cmd)
         return
 
-    merge_bins(pairs, merged_path, pairs, chip, env_name) # use custom merge function
+    merge_bins(pairs, merged_path, pairs, chip, env_name, version) # use custom merge function
     
 
 # Run after main program build

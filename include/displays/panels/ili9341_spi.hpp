@@ -6,13 +6,13 @@
 
 #include "displays/panels/lovyan_light_config.hpp"
 
-class GC9A01SpiPanel : public lgfx::LGFX_Device {
-  lgfx::Panel_GC9A01 _panel_instance;
+class ILI9341SpiPanel : public lgfx::LGFX_Device {
+  lgfx::Panel_ILI9341 _panel_instance;
   lgfx::Light_PWM _light_instance;
   lgfx::Bus_SPI _bus_instance;
 
 public:
-  GC9A01SpiPanel(void) {
+  ILI9341SpiPanel(void) {
     {
       auto cfg = _bus_instance.config();
 
@@ -42,11 +42,11 @@ public:
       cfg.panel_height = SCREEN_HEIGHT;
       cfg.offset_x = OFFSET_X;
       cfg.offset_y = OFFSET_Y;
-      cfg.offset_rotation = 0;
+      cfg.offset_rotation = 2;
       cfg.dummy_read_pixel = 8;
       cfg.dummy_read_bits = 1;
       cfg.readable = false;
-      cfg.invert = true;
+      cfg.invert = false;
       cfg.rgb_order = RGB_ORDER;
       cfg.dlen_16bit = false;
       cfg.bus_shared = false;

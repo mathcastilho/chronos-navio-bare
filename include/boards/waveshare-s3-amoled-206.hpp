@@ -28,7 +28,6 @@
 
 #define BUFFER_FLAGS MALLOC_CAP_SPIRAM
 
-#ifndef BOARD_OEM
 #define BOARD_OEM "Waveshare"
 #define BOARD_NAME "S3 2.06\""
 #define DISPLAY_TYPE "AMOLED"

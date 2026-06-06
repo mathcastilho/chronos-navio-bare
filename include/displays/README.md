@@ -2,7 +2,7 @@
 
 This project selects hardware at compile time from the PlatformIO environment
 by defining `BOARD_PROFILE_INCLUDE`, for example
-`-D BOARD_PROFILE_INCLUDE=\"boards/viewe_smartring.hpp\"`.
+`-D BOARD_PROFILE_INCLUDE=\"boards/viewe-smartring.hpp\"`.
 
 ## Selection Flow
 
@@ -63,8 +63,15 @@ encoders, RFID, sensors, or periodic board updates.
 Board profiles also expose small capability flags used by the LVGL port:
 
 - `BOARD_HAS_TOUCH`: set to `0` when no touch device should be registered.
+- `BOARD_HAS_WAKE_INPUT`: set to `1` when touch or a button can wake the screen.
+- `BOARD_ENABLE_SCREEN_TIMEOUT`: enables automatic screen timeout.
 - `BOARD_USE_ROUNDER_CB`: set to `1` for panels, such as AMOLED, that require
   invalidated LVGL areas to be aligned to even coordinates.
+- `BOARD_ROTATION_OFFSET`: maps logical UI rotation to panel rotation.
+
+LovyanGFX PWM backlights use `TFT_BL_INVERTED`, which defaults to `false`.
+Boards with active-low backlights define it as `true` before including the
+panel.
 
 ## Adding a Board
 
@@ -93,7 +100,7 @@ Create a board profile:
  *********************/
 using BoardDisplay =
     display::DisplayWrapper<GC9A01SpiPanel, LovyanCST816STouch>;
-static BoardDisplay tft;
+extern BoardDisplay tft;
 
 #include "boards/common.hpp"
 
@@ -104,12 +111,15 @@ namespace board {
 inline void before_display_init(void) {}
 inline void after_display_init(void) {}
 inline void after_ui_init(void) {}
+inline void set_brightness(uint8_t value) {}
+inline bool wakeup_activity(void) { return false; }
+inline bool screen_toggle_requested(void) { return false; }
 inline void loop(void) {}
 }
 ```
 
-Add the profile to `include/board_profile.hpp`, then add a PlatformIO
-environment with a matching `-D` flag.
+Add a PlatformIO environment with a matching `BOARD_PROFILE_INCLUDE` flag.
+`src/board_profile.cpp` owns the single global `tft` instance.
 
 ## Display and Touch Composition
 
@@ -131,7 +141,8 @@ Use a direct adapter when the board library owns the display and touch, as with
 M5Dial:
 
 ```cpp
-static M5DialDisplay tft;
+using BoardDisplay = M5DialDisplay;
+extern BoardDisplay tft;
 ```
 
 For boards without touch, use `NoTouch` or `LovyanNoTouch`, depending on the
@@ -141,4 +152,4 @@ display backend.
 
 Keep board constants in the board profile even when the list is long. If a board
 needs a large vendor init table, place it in the `DEFINES` section as pure data,
-as `viewe_echo_ear.hpp` does.
+as `viewe-echo-ear.hpp` does.

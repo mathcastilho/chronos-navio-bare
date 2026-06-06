@@ -10,27 +10,20 @@
 #define OFFSET_Y 0
 #define RGB_ORDER false
 
-// touch
-#define I2C_SDA 4
-#define I2C_SCL 5
-#define TP_INT 0
-#define TP_RST 1
 
 // display
 #define TFT_SPI_HOST SPI2_HOST
 
-#define TFT_SCLK 6
-#define TFT_MOSI 7
+#define TFT_SCLK 1
+#define TFT_MOSI 0
 #define TFT_MISO -1
-#define TFT_DC 2
+#define TFT_DC 4
 #define TFT_CS 10
 #define TFT_RST -1
 
-#define TFT_BL 3
+#define TFT_BL 8
+#define TFT_BL_INVERTED true
 
-#define VIBRATION_PIN -1
-
-#define BUZZER_PIN -1
 
 #define LV_BUFFER_SIZE (SCREEN_WIDTH * 40)
 #define LV_BUFFER_COUNT 2
@@ -39,36 +32,66 @@
 #define USE_DYNAMIC_BUFFERS 0
 #define BUFFER_FLAGS -1
 
+
 #ifndef BOARD_OEM
-#define BOARD_OEM "Guition"
-#define BOARD_NAME "C3 1.28\""
+#define BOARD_OEM "Viewe"
+#endif
+#ifndef BOARD_NAME
+#define BOARD_NAME "Knob 1.28\""
+#endif
+#ifndef DISPLAY_TYPE
 #define DISPLAY_TYPE "LCD"
-#define BOARD_HAS_TOUCH 1
+#endif
+#define BOARD_HAS_TOUCH 0
+#define BOARD_HAS_WAKE_INPUT 1
+#define WAKE_BUTTON_PIN 9
 
 /*********************
  *      INCLUDES
  *********************/
 #include "displays/display_wrapper.hpp"
 #include "displays/panels/gc9a01_spi.hpp"
-#include "displays/touch/lovyan_cst816s.hpp"
+#include "displays/touch/none.hpp"
+
+#include "Button2.h"
 
 /*********************
  *      TYPEDEFS
  *********************/
 using BoardDisplay =
-    display::DisplayWrapper<GC9A01SpiPanel, LovyanCST816STouch>;
+    display::DisplayWrapper<GC9A01SpiPanel, NoTouch>;
 extern BoardDisplay tft;
 
 #include "boards/common.hpp"
 
 /*********************
+ *    OTHER FUNCTIONS 
+ *********************/
+
+/*********************
  *      BOARD HOOKS
  *********************/
 namespace board {
-inline void before_display_init(void) {}
+inline Button2 &button(void) {
+    static Button2 instance;
+    return instance;
+}
+
+inline void before_display_init(void) {
+    button().begin(WAKE_BUTTON_PIN);
+}
 inline void after_display_init(void) {}
 inline void after_ui_init(void) {}
+inline void set_brightness(uint8_t value) {}
 inline bool wakeup_activity(void) { return false; }
-inline bool screen_toggle_requested(void) { return false; }
-inline void loop(void) {}
+inline bool screen_toggle_requested(void) {
+    if (button().wasPressed()) {
+        button().read();
+        return true;
+    }
+    return false;
+ }
+inline void loop(void) {
+    button().loop();
+}
 } // namespace board
