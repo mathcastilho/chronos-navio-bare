@@ -88,7 +88,7 @@ def publish(api_key, entry, firmware_path, family):
         "-F",
         f"flash_offset={entry['address']}",
         "-F",
-        "status=draft",
+        "status=published",
         "-F",
         "allow_unspecified_board=0",
         "-F",

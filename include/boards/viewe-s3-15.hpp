@@ -30,7 +30,6 @@
 
 #define BUFFER_FLAGS MALLOC_CAP_SPIRAM
 
-#ifndef BOARD_OEM
 #define BOARD_OEM "Viewe"
 #define BOARD_NAME "S3 1.5\""
 #define DISPLAY_TYPE "AMOLED"

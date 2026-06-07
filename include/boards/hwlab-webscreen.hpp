@@ -22,7 +22,6 @@
 
 #define BUFFER_FLAGS MALLOC_CAP_SPIRAM
 
-#ifndef BOARD_OEM
 #define BOARD_OEM "HW Media Lab"
 #define BOARD_NAME "Webscreen"
 #define DISPLAY_TYPE "AMOLED"
