@@ -1,31 +1,35 @@
 # Chronos Navio
 
-Chronos Navio is an ESP32 navigation display firmware built with Arduino,
+Chronos Navio is an ESP32 navigation display firmware built with
 PlatformIO, LVGL, and [ChronosESP32](https://github.com/fbiego/ChronosESP32).
 It receives navigation and device information over Bluetooth and presents it on
 a range of LCD and AMOLED boards.
 
-The project uses compile-time board profiles so the application can support
-different displays, touch controllers, buttons, backlights, and board-specific
-initialization without adding hardware checks throughout the main application.
 
 ## Features
 
-- Bluetooth navigation data through ChronosESP32
-- LVGL navigation and settings interface
-- LCD and AMOLED display support
-- Arduino_GFX, LovyanGFX, and M5Stack display adapters
-- Optional touch, buttons, encoders, and custom board hooks
-- Configurable rotation, touch rotation, and backlight polarity
-- Screen timeout and wake-input support
-- Persistent settings through ESP32 Preferences
-- Per-board merged firmware binaries
+- BLE navigation data via ChronosESP32
+- LVGL based UI - [navio_ui](https://github.com/lvgl-pro-projects/fbiego--navio_ui)
+- Multiple boards support
+- Multiple language support
 
 ## Firmware
 
-Prebuilt firmware is available for the listed boards on ESPVerse
+Prebuilt firmware is available for various boards on ESPVerse
 
-<a href="https://espverse.com/missions/chronos-navio"><img src="https://espverse.com/assets/images/espverse_badge.png" alt="Flashable on ESPVerse" width="200"></a>
+<a href="https://espverse.com/missions/chronos-navio"><img src="https://espverse.com/assets/images/espverse_badge.png" alt="Flashable on ESPVerse" width="250"></a>
+
+## Screenshots
+
+Some snapshots of the UI
+
+| Launch | Navigation |
+| --- | --- |
+| ![Launch screen](https://raw.githubusercontent.com/lvgl-pro-projects/fbiego--navio_ui/main/screenshots/launch.png) | ![Navigation screen](https://raw.githubusercontent.com/lvgl-pro-projects/fbiego--navio_ui/main/screenshots/navigation.png) |
+
+| Settings | About |
+| --- | --- |
+| ![Settings screen](https://raw.githubusercontent.com/lvgl-pro-projects/fbiego--navio_ui/main/screenshots/settings.png) | ![About screen](https://raw.githubusercontent.com/lvgl-pro-projects/fbiego--navio_ui/main/screenshots/about.png) |
 
 ## License
 
