@@ -74,6 +74,29 @@ static uint32_t physical_internal_ram_kb() {
 #endif
 }
 
+static uint8_t language_map(uint8_t id) {
+  switch (id) {
+  case 0: // chinese
+    return 9; 
+  case 1: // english
+    return 0;
+  case 4: // portuguese
+    return 1;
+  case 5: // russian
+    return 6;
+  case 6: // ja
+    return 10;
+  case 7: // zh
+    return 9;
+  case 8: //de
+    return 2;
+  case 10: // th
+    return 8;
+  default:
+    return 0;
+  }
+}
+
 static uint8_t brightness_percent_to_level(int32_t value) {
   value = constrain(value, 0, 100);
   return (uint8_t)((value * 255) / 100);
@@ -164,10 +187,14 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
   switch (config) {
   case CF_NAV_DATA: {
     nav = watch.getNavigation();
-    String sep = " | ";
+
+    Timber.d("Navigation data received: active=%d, title=%s, directions=%s, duration=%s, eta=%s, distance=%s",
+             nav.active, nav.title.c_str(), nav.directions.c_str(),
+             nav.duration.c_str(), nav.eta.c_str(), nav.distance.c_str());
+    String sep = (nav.duration != "" && nav.distance != "") ? " | " : " ";
     if (!nav.active) {
-      nav.directions = lv_translation_get("nav_start");
-      nav.title = lv_translation_get("navigation");
+      nav.directions = "nav_start";
+      nav.title = "navigation";
       nav.duration = watch.isConnected() ? lv_translation_get("inactive")
                                          : lv_translation_get("disconnected");
       nav.eta = "Chronos";
@@ -181,15 +208,24 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
       sep = " ";
     }
     String navText;
+    String nl = (nav.duration == "" && nav.distance == "") ? "" : "\n";
 
     if (nav.active) {
       if (navio_subject_get_show_arrival_time()) {
-        navText = nav.eta + "\n" + nav.duration + sep + nav.distance;
+        navText = nav.eta + nl + nav.duration + sep + nav.distance;
       } else {
         navText = nav.duration + sep + nav.distance;
       }
+
+      
+      if (nav.title == "") {
+        nav.title = " ";
+      }
+      if (nav.speed != "") {
+        nav.title = nav.title + " | " + nav.speed;
+      }
     } else {
-      navText = nav.eta + "\n" + nav.duration + sep + nav.distance;
+      navText = nav.eta + nl + nav.duration + sep + nav.distance;
     }
 
     navio_subject_set_nav_text(navText.c_str());
@@ -217,12 +253,21 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
     prefs.putString("app_version", appVersion);
   } break;
   case CF_LANG:
-    // state not saved internally
-    Serial.print("Language: ");
-    Serial.println(b);
+    navio_subject_set_language(language_map(b));
     break;
   case CF_HR24:
     prefs.putBool("hr24", b);
+    break;
+  case CF_FONT:
+    navio_subject_set_theme_color(a);
+    prefs.putInt("theme_color", a);
+    break;
+  case CF_RST:
+    prefs.clear();
+    ESP.restart();
+    break;
+  case CF_FIND:
+    screen_activity();
     break;
   }
 }
@@ -295,6 +340,11 @@ void navio_subject_show_directions_change(int32_t value) {
   prefs.putInt("show_directions", value);
 }
 
+void navio_subject_directions_size_change(int32_t value)
+{
+  prefs.putInt("directions_size", value);
+}
+
 void navio_ui_reset_confirm_cb(lv_event_t *e) {
 
   prefs.clear();
@@ -332,7 +382,8 @@ void setup() {
   int show_time = prefs.getInt("show_time", 1);
   int show_eta = prefs.getInt("show_eta", 1);
   int show_directions = prefs.getInt("show_directions", 1);
-
+  int directions_size = prefs.getInt("directions_size", 0);
+  uint32_t theme_color = prefs.getInt("theme_color", 0xFFFFFF);
   String app_version = prefs.getString("app_version", "N/A");
 
   lvgl_port_set_screen_callbacks(screen_is_awake, screen_activity);
@@ -363,8 +414,8 @@ void setup() {
 
   navio_subject_set_board_mac(watch.getAddress().c_str());
   char version[16];
-  lv_snprintf(version, sizeof(version), "v%d.%d.%d", CHRONOSESP_VERSION_MAJOR,
-              CHRONOSESP_VERSION_MINOR, CHRONOSESP_VERSION_PATCH);
+  lv_snprintf(version, sizeof(version), "v%d.%d.%d", CS_VERSION_MAJOR,
+              CS_VERSION_MINOR, CS_VERSION_PATCH);
   navio_subject_set_chronos_esp_version(version);
 
   navio_subject_set_board_oem(BOARD_OEM);
@@ -393,13 +444,15 @@ void setup() {
   if (icon_size != 0) {
     navio_subject_set_icon_size(icon_size);
   }
+  navio_subject_set_directions_size(directions_size);
   navio_subject_set_show_system_time(show_time);
   navio_subject_set_show_arrival_time(show_eta);
   navio_subject_set_show_directions(show_directions);
   // navio_subject_set_nav_icon((void *)&nav_icon_dsc);
   navio_subject_set_nav_text("Chronos");
-  navio_subject_set_nav_title(lv_translation_get("navigation"));
-  navio_subject_set_nav_directions(lv_translation_get("nav_info"));
+  navio_subject_set_nav_title("navigation");
+  navio_subject_set_nav_directions("nav_info");
+  navio_subject_set_theme_color(theme_color);
 
   Serial.println("Setup complete");
 }
