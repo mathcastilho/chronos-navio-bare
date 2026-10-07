@@ -46,6 +46,20 @@ ChronosESP32 watch("Chronos Navio"); // set the bluetooth name
 Preferences prefs;
 Navigation nav;
 
+namespace HardcodedSettings {
+constexpr int brightness = 100;
+constexpr int language = 0; // English (navio_ui index: en)
+constexpr int rotation = 0;
+constexpr int screen_timeout = 3; // 30 seconds
+constexpr bool hr24 = false;
+constexpr int icon_size = 384;
+constexpr int show_time = 0;
+constexpr int show_eta = 0;
+constexpr int show_directions = 1;
+constexpr int directions_size = 1;
+constexpr uint32_t theme_color = 0xFFFFFF;
+} // namespace HardcodedSettings
+
 bool nav_active = false;
 uint32_t nav_crc = 0xFFFFFFFF;
 lv_image_dsc_t nav_icon_dsc;
@@ -72,29 +86,6 @@ static uint32_t physical_internal_ram_kb() {
 #else
   return 0;
 #endif
-}
-
-static uint8_t language_map(uint8_t id) {
-  switch (id) {
-  case 0: // chinese
-    return 9; 
-  case 1: // english
-    return 0;
-  case 4: // portuguese
-    return 1;
-  case 5: // russian
-    return 6;
-  case 6: // ja
-    return 10;
-  case 7: // zh
-    return 9;
-  case 8: //de
-    return 2;
-  case 10: // th
-    return 8;
-  default:
-    return 0;
-  }
 }
 
 static uint8_t brightness_percent_to_level(int32_t value) {
@@ -253,7 +244,7 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
     prefs.putString("app_version", appVersion);
   } break;
   case CF_LANG:
-    navio_subject_set_language(language_map(b));
+    navio_subject_set_language(HardcodedSettings::language);
     break;
   case CF_HR24:
     prefs.putBool("hr24", b);
@@ -285,12 +276,12 @@ static uint8_t display_rotation_from_ui(int32_t rotation) {
 }
 
 void navio_subject_screen_brightness_change(int32_t value) {
+  (void)value;
+  // All display settings are fixed at compile time.
   apply_screen_brightness();
-  prefs.putInt("brightness", value);
 }
 
 void navio_subject_screen_rotation_change(int32_t value) {
-
 #if BOARD_ROTATION_LOCKED == 1
   return;
 #endif
@@ -305,54 +296,13 @@ void navio_subject_screen_rotation_change(int32_t value) {
       lvgl_port_get_rotation(display_rotation_from_ui(value)));
 #else
   tft.setRotation(display_rotation_from_ui(value));
-  // screen rotation has changed, invalidate to redraw
   lv_obj_invalidate(lv_screen_active());
 #endif
-
-  prefs.putInt("rotation", value);
-}
-
-void navio_subject_language_change(int32_t value) {
-  // handle language change if needed
-  prefs.putInt("language", value);
 }
 
 void navio_subject_screen_timeout_change(int32_t value) {
   set_screen_timeout(value);
-  prefs.putInt("screen_timeout", value);
 }
-void navio_subject_icon_size_change(int32_t value) {
-  prefs.putInt("icon_size", value);
-}
-
-void navio_subject_show_system_time_change(int32_t value) {
-
-  if (!nav.active && !value) {
-    navio_subject_set_nav_text("Chronos");
-  }
-  prefs.putInt("show_time", value);
-}
-
-void navio_subject_show_arrival_time_change(int32_t value) {
-  prefs.putInt("show_eta", value);
-}
-void navio_subject_show_directions_change(int32_t value) {
-  prefs.putInt("show_directions", value);
-}
-
-void navio_subject_directions_size_change(int32_t value)
-{
-  prefs.putInt("directions_size", value);
-}
-
-void navio_ui_reset_confirm_cb(lv_event_t *e) {
-
-  prefs.clear();
-  ESP.restart();
-}
-
-void on_settings_status(bool state) {}
-
 
 void setup() {
 
@@ -369,21 +319,21 @@ void setup() {
   set_screen_brightness_level(255);
   board::after_display_init();
 
-  int brightness = prefs.getInt("brightness", 80);
-  int language = prefs.getInt("language", 0);
-  int rotation = prefs.getInt("rotation", 0);
+  int brightness = HardcodedSettings::brightness;
+  int language = HardcodedSettings::language;
+  int rotation = HardcodedSettings::rotation;
 #if BOARD_ROTATION_LOCKED == 1 && BOARD_ROTATION_VALUE >= 0
   rotation = BOARD_ROTATION_VALUE;
 #endif
-  int screen_timeout = prefs.getInt("screen_timeout", 2);
-  bool hr24 = prefs.getBool("hr24", false);
-  int icon_size = prefs.getInt("icon_size", 0);
+  int screen_timeout = HardcodedSettings::screen_timeout;
+  bool hr24 = HardcodedSettings::hr24;
+  int icon_size = HardcodedSettings::icon_size;
 
-  int show_time = prefs.getInt("show_time", 1);
-  int show_eta = prefs.getInt("show_eta", 1);
-  int show_directions = prefs.getInt("show_directions", 1);
-  int directions_size = prefs.getInt("directions_size", 0);
-  uint32_t theme_color = prefs.getInt("theme_color", 0xFFFFFF);
+  int show_time = HardcodedSettings::show_time;
+  int show_eta = HardcodedSettings::show_eta;
+  int show_directions = HardcodedSettings::show_directions;
+  int directions_size = HardcodedSettings::directions_size;
+  uint32_t theme_color = HardcodedSettings::theme_color;
   String app_version = prefs.getString("app_version", "N/A");
 
   lvgl_port_set_screen_callbacks(screen_is_awake, screen_activity);
