@@ -81,7 +81,156 @@ def remove_navigation_status_indicators(navio_ui_dir):
         xml_path.write_text(xml_source, encoding="utf-8")
 
 
+def add_default_navigation_heading_control(navio_ui_dir):
+    source_path = (
+        navio_ui_dir
+        / "components"
+        / "views"
+        / "nav_default"
+        / "nav_default_gen.c"
+    )
+    source = source_path.read_text(encoding="utf-8")
+    trip_info_creation = (
+        "lv_obj_t * hs_text_color_normal_0 = "
+        "hs_text_color_normal_create(hs_column_1);"
+    )
+    hide_empty_call = "wd_label_set_hide_empty(hs_text_color_normal_0, true);"
+    if hide_empty_call not in source:
+        if trip_info_creation not in source:
+            raise RuntimeError(f"Could not find trip information widget in {source_path}")
+        source = source.replace(
+            trip_info_creation,
+            trip_info_creation + "\n        " + hide_empty_call,
+            1,
+        )
+
+    if "nav_default_set_title_above_icon" in source:
+        source = remove_c_function(source, "nav_default_set_title_above_icon")
+        source = source.replace(
+            "static lv_obj_t * nav_default_title_widget;\n"
+            "static lv_obj_t * nav_default_icon_widget;\n",
+            "",
+            1,
+        )
+
+    if "nav_default_apply_navigation_layout" in source:
+        source_path.write_text(source, encoding="utf-8")
+        return
+
+    variables_start = source.find(" *  STATIC VARIABLES")
+    variables_end = source.find("*/", variables_start)
+    if variables_start < 0 or variables_end < 0:
+        raise RuntimeError(f"Could not find static variables section in {source_path}")
+    variables_end += 2
+    source = (
+        source[:variables_end]
+        + "\n\nstatic lv_obj_t * nav_default_title_widget;\n"
+        + "static lv_obj_t * nav_default_icon_widget;\n"
+        + "static lv_obj_t * nav_default_small_directions_widget;\n"
+        + "static lv_obj_t * nav_default_large_directions_widget;"
+        + source[variables_end:]
+    )
+
+    icon_creation = "lv_obj_t * wd_scale_0 = wd_scale_create(hs_column_1);"
+    title_creation = (
+        "lv_obj_t * hs_text_color_normal_1 = "
+        "hs_text_color_normal_create(hs_column_1);"
+    )
+    small_directions_creation = (
+        "lv_obj_t * hs_text_color_small_0 = "
+        "hs_text_color_small_create(hs_column_1);"
+    )
+    large_directions_creation = (
+        "lv_obj_t * hs_text_color_normal_2 = "
+        "hs_text_color_normal_create(hs_column_1);"
+    )
+    if any(
+        marker not in source
+        for marker in (
+            icon_creation,
+            title_creation,
+            small_directions_creation,
+            large_directions_creation,
+        )
+    ):
+        raise RuntimeError(f"Could not find navigation icon/title widgets in {source_path}")
+    widget_assignments = (
+        (icon_creation, "nav_default_icon_widget = wd_scale_0;"),
+        (title_creation, "nav_default_title_widget = hs_text_color_normal_1;"),
+        (
+            small_directions_creation,
+            "nav_default_small_directions_widget = hs_text_color_small_0;",
+        ),
+        (
+            large_directions_creation,
+            "nav_default_large_directions_widget = hs_text_color_normal_2;",
+        ),
+    )
+    for creation, assignment in widget_assignments:
+        if assignment not in source:
+            source = source.replace(creation, creation + "\n        " + assignment, 1)
+    for binding in (
+        "        lv_obj_bind_flag_if_eq(hs_text_color_small_0, &sb_show_directions, LV_OBJ_FLAG_HIDDEN, 0);\n",
+        "        lv_obj_bind_flag_if_eq(hs_text_color_small_0, &sb_directions_size, LV_OBJ_FLAG_HIDDEN, 1);\n",
+        "        lv_obj_bind_flag_if_eq(hs_text_color_normal_2, &sb_show_directions, LV_OBJ_FLAG_HIDDEN, 0);\n",
+        "        lv_obj_bind_flag_if_eq(hs_text_color_normal_2, &sb_directions_size, LV_OBJ_FLAG_HIDDEN, 0);\n",
+    ):
+        if binding not in source:
+            raise RuntimeError(f"Could not find directions visibility binding in {source_path}")
+        source = source.replace(binding, "", 1)
+
+    function_marker = (
+        "/**********************\n"
+        " *   STATIC FUNCTIONS"
+    )
+    function = (
+        "void nav_default_apply_navigation_layout(bool heading_above_icon, "
+        "bool show_directions, bool large_directions)\n"
+        "{\n"
+        "    if (nav_default_title_widget != NULL && nav_default_icon_widget != NULL && "
+        "lv_obj_get_parent(nav_default_title_widget) == "
+        "lv_obj_get_parent(nav_default_icon_widget)) {\n"
+        "        int32_t title_index = lv_obj_get_index(nav_default_title_widget);\n"
+        "        int32_t icon_index = lv_obj_get_index(nav_default_icon_widget);\n"
+        "        if ((heading_above_icon && title_index > icon_index) || "
+        "(!heading_above_icon && title_index < icon_index)) {\n"
+        "            lv_obj_move_to_index(nav_default_title_widget, icon_index);\n"
+        "        }\n"
+        "    }\n"
+        "    if (nav_default_small_directions_widget != NULL) {\n"
+        "        if (show_directions && !large_directions) "
+        "lv_obj_clear_flag(nav_default_small_directions_widget, LV_OBJ_FLAG_HIDDEN);\n"
+        "        else lv_obj_add_flag(nav_default_small_directions_widget, "
+        "LV_OBJ_FLAG_HIDDEN);\n"
+        "    }\n"
+        "    if (nav_default_large_directions_widget != NULL) {\n"
+        "        if (show_directions && large_directions) "
+        "lv_obj_clear_flag(nav_default_large_directions_widget, LV_OBJ_FLAG_HIDDEN);\n"
+        "        else lv_obj_add_flag(nav_default_large_directions_widget, "
+        "LV_OBJ_FLAG_HIDDEN);\n"
+        "    }\n"
+        "}\n\n"
+    )
+    if function_marker not in source:
+        raise RuntimeError(f"Could not find static functions section in {source_path}")
+    source = source.replace(function_marker, function + function_marker, 1)
+    source_path.write_text(source, encoding="utf-8")
+
+
 project_dir = Path(env.subst("$PROJECT_DIR"))
+lvgl_stdlib = (
+    project_dir
+    / ".pio"
+    / "libdeps"
+    / env.subst("$PIOENV")
+    / "lvgl"
+    / "src"
+    / "stdlib"
+)
+if lvgl_stdlib.is_dir():
+    # RISC-V GCC on Windows can fail resolving LVGL's deeply nested relative includes.
+    env.Append(CPPPATH=[str(lvgl_stdlib.resolve())])
+
 project_headers = [
     str(path)
     for pattern in ("*.h", "*.hpp")
@@ -164,6 +313,7 @@ for screen_name in ("settings", "about"):
 navio_ui_generated_header.write_text(generated_header, encoding="utf-8")
 
 remove_navigation_status_indicators(navio_ui_dir)
+add_default_navigation_heading_control(navio_ui_dir)
 
 for screen_name in ("settings", "about"):
     screen_dir = navio_ui_dir / "screens" / screen_name
