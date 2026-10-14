@@ -155,6 +155,37 @@ public final class ChronosNavigationPacketTest {
     }
 
     @Test
+    public void parsesMapsNotificationDistancesSeparatedByNonBreakingSpaces() {
+        NavigationText text = NavigationTextParser.parse(Arrays.asList(
+                "100\u00A0m",
+                "R. Example",
+                "2 min · 750\u00A0m · 22:46 ETA"));
+
+        assertEquals("100 m", text.title);
+        assertEquals("2 min", text.duration);
+        assertEquals("750 m", text.distance);
+        assertEquals("22:46", text.eta);
+        assertEquals("R. Example", text.directions);
+    }
+
+    @Test
+    public void keepsMapsPoiDistanceAsManeuverDistanceWhenTripDistanceMatches() {
+        NavigationText text = NavigationTextParser.parse(Arrays.asList(
+                "240\u00A0m",
+                "Terrazza 40 / R. Padre Anchieta, 1287 - Bigorrilho",
+                "1 min · 240\u00A0m · 21:48 ETA"),
+                "240\u00A0m");
+
+        assertEquals("240 m", text.title);
+        assertEquals("1 min", text.duration);
+        assertEquals("240 m", text.distance);
+        assertEquals("21:48", text.eta);
+        assertEquals(
+                "Terrazza 40 / R. Padre Anchieta, 1287 - Bigorrilho",
+                text.directions);
+    }
+
+    @Test
     public void preservesPortugueseInstructionWhenNoTripMetricsAreAvailable() {
         NavigationText text = NavigationTextParser.parse(Arrays.asList(
                 "Google Maps", "Vire à direita na Avenida Paulista"));

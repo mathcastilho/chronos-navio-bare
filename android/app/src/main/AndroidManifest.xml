@@ -32,6 +32,10 @@
             android:name=".DeviceSettingsActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".NotificationLogActivity"
+            android:exported="false" />
+
         <service
             android:name=".BleNavigationService"
             android:exported="false"
@@ -46,5 +50,11 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <provider
+            android:name=".NotificationLogProvider"
+            android:authorities="${applicationId}.notification-log"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

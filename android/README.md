@@ -44,6 +44,21 @@ This requires the matching firmware, which receives the app-specific settings
 frame over the existing ChronosESP32 BLE RX characteristic. Older firmware
 continues to use its built-in defaults and ignores that frame.
 
+## Raw notification diagnostics
+
+Open **Navigation notification log** and enable logging to save raw notifications
+from the supported navigation apps together with the fields Navio Bridge parses.
+Each entry contains notification metadata, all extras Android exposes,
+action/input metadata, bitmap payloads, and the extracted navigation fields.
+Compare the `extracted` object with `extras` to diagnose parsing issues. The log
+is stored only in the app's private storage and is not shared unless you
+explicitly export the JSON Lines file. Use **Clear log** to delete it. When the
+file exceeds 10 MiB, a new log starts rather than cutting off an individual
+notification record. Android does not expose the rendered internals of app-
+specific notification layouts or private app data to notification listeners.
+If the phone has no document picker, **Export log** opens the Android share
+sheet with a read-only log attachment so it can be saved through another app.
+
 ## Supported sources and protocol
 
 The listener forwards ongoing notifications from Google Maps, Waze, OsmAnd,

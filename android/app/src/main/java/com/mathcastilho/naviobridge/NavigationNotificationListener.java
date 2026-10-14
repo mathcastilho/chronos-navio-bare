@@ -68,13 +68,13 @@ public final class NavigationNotificationListener extends NotificationListenerSe
             return;
         }
         for (StatusBarNotification notification : active) {
-            relayIfNavigation(notification);
+            relayIfNavigation(notification, "snapshot");
         }
     }
 
     @Override
     public void onNotificationPosted(StatusBarNotification notification) {
-        relayIfNavigation(notification);
+        relayIfNavigation(notification, "posted");
     }
 
     @Override
@@ -85,7 +85,8 @@ public final class NavigationNotificationListener extends NotificationListenerSe
         }
     }
 
-    private boolean relayIfNavigation(StatusBarNotification statusBarNotification) {
+    private boolean relayIfNavigation(
+            StatusBarNotification statusBarNotification, String logEvent) {
         String packageName = statusBarNotification.getPackageName();
         Notification notification = statusBarNotification.getNotification();
         if (!NAVIGATION_PACKAGES.contains(packageName)
@@ -94,6 +95,10 @@ public final class NavigationNotificationListener extends NotificationListenerSe
         }
 
         NavigationText navigationText = extractNavigationText(notification);
+        if (logEvent != null) {
+            NotificationLog.record(
+                    this, statusBarNotification, logEvent, navigationText);
+        }
         if (!navigationText.hasContent()) {
             return false;
         }
@@ -128,7 +133,9 @@ public final class NavigationNotificationListener extends NotificationListenerSe
                 addValue(values, line);
             }
         }
-        return NavigationTextParser.parse(values);
+        CharSequence title = notification.extras.getCharSequence(Notification.EXTRA_TITLE);
+        return NavigationTextParser.parse(
+                values, title == null ? "" : title.toString());
     }
 
     private void addValue(List<String> values, CharSequence value) {
@@ -151,7 +158,7 @@ public final class NavigationNotificationListener extends NotificationListenerSe
             for (StatusBarNotification notification : active) {
                 if (NAVIGATION_PACKAGES.contains(notification.getPackageName())
                         && isOngoingNavigation(notification.getNotification())) {
-                    if (relayIfNavigation(notification)) {
+                    if (relayIfNavigation(notification, null)) {
                         return;
                     }
                 }

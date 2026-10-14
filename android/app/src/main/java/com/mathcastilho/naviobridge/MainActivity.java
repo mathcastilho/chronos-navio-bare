@@ -85,6 +85,12 @@ public final class MainActivity extends Activity {
                 startActivity(new Intent(this, DeviceSettingsActivity.class)));
         content.addView(deviceSettingsButton);
 
+        Button notificationLogButton = new Button(this);
+        notificationLogButton.setText("Navigation notification log");
+        notificationLogButton.setOnClickListener(view ->
+                startActivity(new Intent(this, NotificationLogActivity.class)));
+        content.addView(notificationLogButton);
+
         TextView note = new TextView(this);
         note.setText(
                 "Notification access lets the relay read ongoing notifications from supported "

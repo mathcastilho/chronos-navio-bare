@@ -2,10 +2,8 @@ package com.mathcastilho.naviobridge;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,12 +31,20 @@ final class NavigationTextParser {
     }
 
     static NavigationText parse(List<String> notificationValues) {
-        Set<String> segments = new LinkedHashSet<>();
+        return parse(notificationValues, "");
+    }
+
+    static NavigationText parse(List<String> notificationValues, String notificationTitle) {
+        List<String> segments = new ArrayList<>();
         for (String value : notificationValues) {
             if (value == null) {
                 continue;
             }
-            for (String segment : SEPARATOR.split(value)) {
+            String normalizedSpaces = value
+                    .replace('\u00A0', ' ')
+                    .replace('\u202F', ' ')
+                    .replace('\u2007', ' ');
+            for (String segment : SEPARATOR.split(normalizedSpaces)) {
                 String cleaned = segment.trim();
                 if (!cleaned.isEmpty() && !isApplicationLabel(cleaned)) {
                     segments.add(cleaned);
@@ -53,6 +59,7 @@ final class NavigationTextParser {
         String eta = "";
         List<String> allDistances = new ArrayList<>();
         ArrayList<String> instructionCandidates = new ArrayList<>();
+        maneuverDistance = standaloneDistance(notificationTitle);
 
         for (String segment : segments) {
             String lower = normalize(segment);
@@ -107,6 +114,21 @@ final class NavigationTextParser {
         String title = maneuverDistance.isEmpty() ? fallbackDistance : maneuverDistance;
         String distance = destinationDistance;
         return new NavigationText(title, duration, distance, eta, directions, "");
+    }
+
+    private static String standaloneDistance(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value
+                .replace('\u00A0', ' ')
+                .replace('\u202F', ' ')
+                .replace('\u2007', ' ')
+                .trim();
+        Matcher matcher = DISTANCE.matcher(normalized);
+        return matcher.matches()
+                ? formatDistance(matcher.group(1), matcher.group(2))
+                : "";
     }
 
     private static boolean hasDistancePrefix(String normalized, int distanceStart) {
