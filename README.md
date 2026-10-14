@@ -19,6 +19,11 @@ Prebuilt firmware is available for various boards on ESPVerse
 
 <a href="https://espverse.com/missions/chronos-navio"><img src="https://espverse.com/assets/images/espverse_badge.png" alt="Flashable on ESPVerse" width="250"></a>
 
+## Android companion
+
+The Android app in [`android/`](android/README.md) relays ongoing navigation
+notifications to Chronos Navio over the existing BLE protocol.
+
 ## Screenshots
 
 Some snapshots of the UI

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Navio Bridge</string>
+    <string name="notification_listener_label">Navio Bridge navigation relay</string>
+</resources>

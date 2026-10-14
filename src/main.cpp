@@ -42,29 +42,168 @@
 #include "main.h"
 #include "navio_ui.h"
 
+extern "C" void nav_default_apply_navigation_layout(
+    bool heading_above_icon, bool show_directions, bool large_directions);
+
 ChronosESP32 watch("Chronos Navio"); // set the bluetooth name
 Preferences prefs;
 Navigation nav;
 
 namespace HardcodedSettings {
 constexpr int brightness = 100;
-constexpr int language = 0; // English (navio_ui index: en)
-constexpr int rotation = 0;
 constexpr int screen_timeout = 3; // 30 seconds
-constexpr bool hr24 = false;
 constexpr int icon_size = 384;
-constexpr int show_time = 0;
 constexpr int show_eta = 0;
 constexpr int show_directions = 1;
 constexpr int directions_size = 1;
 constexpr uint32_t theme_color = 0xFFFFFF;
+constexpr bool show_trip_info = true;
+constexpr bool heading_above_icon = false;
 } // namespace HardcodedSettings
+
+struct DisplaySettings {
+  uint8_t brightness = HardcodedSettings::brightness;
+  uint8_t timeout = HardcodedSettings::screen_timeout;
+  uint16_t icon_size = HardcodedSettings::icon_size;
+  bool show_eta = HardcodedSettings::show_eta;
+  bool show_directions = HardcodedSettings::show_directions;
+  bool large_directions = HardcodedSettings::directions_size;
+  uint32_t theme_color = HardcodedSettings::theme_color;
+  bool show_trip_info = HardcodedSettings::show_trip_info;
+  bool heading_above_icon = HardcodedSettings::heading_above_icon;
+};
 
 bool nav_active = false;
 uint32_t nav_crc = 0xFFFFFFFF;
 lv_image_dsc_t nav_icon_dsc;
 
 ScreenTimeoutState screen_timeout;
+DisplaySettings display_settings;
+
+static void screen_activity(uint32_t extra_ms);
+void configCallback(Config config, uint32_t a, uint32_t b);
+
+static uint16_t read_u16_be(const uint8_t *data) {
+  return (static_cast<uint16_t>(data[0]) << 8) | data[1];
+}
+
+static uint32_t read_u32_be(const uint8_t *data) {
+  return (static_cast<uint32_t>(data[0]) << 24) |
+         (static_cast<uint32_t>(data[1]) << 16) |
+         (static_cast<uint32_t>(data[2]) << 8) | data[3];
+}
+
+static void persist_display_settings() {
+  prefs.putUChar("brightness", display_settings.brightness);
+  prefs.putUChar("timeout", display_settings.timeout);
+  prefs.putUShort("icon_size", display_settings.icon_size);
+  prefs.putBool("show_eta", display_settings.show_eta);
+  prefs.putBool("show_dirs", display_settings.show_directions);
+  prefs.putBool("large_dirs", display_settings.large_directions);
+  prefs.putUInt("theme_color", display_settings.theme_color);
+  prefs.putBool("show_trip", display_settings.show_trip_info);
+  prefs.putBool("heading_top", display_settings.heading_above_icon);
+}
+
+static void apply_display_settings() {
+  navio_subject_set_screen_brightness(display_settings.brightness);
+  navio_subject_set_screen_timeout(display_settings.timeout);
+  navio_subject_set_icon_size(display_settings.icon_size);
+  navio_subject_set_show_arrival_time(display_settings.show_eta);
+  navio_subject_set_show_directions(display_settings.show_directions);
+  navio_subject_set_directions_size(display_settings.large_directions);
+  navio_subject_set_theme_color(display_settings.theme_color);
+  nav_default_apply_navigation_layout(
+      display_settings.heading_above_icon, display_settings.show_directions,
+      display_settings.large_directions);
+}
+
+static void settingsDataCallback(uint8_t *data, int length) {
+  // The Chronos library ignores this command after exposing the complete frame here.
+  bool version_one = length == 21 && data[5] == 1;
+  bool version_two = length == 23 && data[5] == 2;
+  bool version_three = length == 19 && data[5] == 3;
+  if ((!version_one && !version_two && !version_three) ||
+      data[0] != 0xAB || data[1] != 0 ||
+      data[2] != length - 3 || data[3] != 0xFE || data[4] != 0x7E) {
+    return;
+  }
+
+  DisplaySettings incoming = display_settings;
+  uint8_t eta_value;
+  uint8_t directions_value;
+  uint8_t large_directions_value;
+  uint8_t show_trip_value = 1;
+  uint8_t heading_value = 0;
+  if (version_three) {
+    incoming.brightness = data[6];
+    incoming.timeout = data[7];
+    incoming.icon_size = read_u16_be(data + 8);
+    eta_value = data[10];
+    directions_value = data[11];
+    large_directions_value = data[12];
+    incoming.theme_color = read_u32_be(data + 13);
+    show_trip_value = data[17];
+    heading_value = data[18];
+    incoming.show_trip_info = show_trip_value != 0;
+    incoming.heading_above_icon = heading_value != 0;
+  } else {
+    incoming.brightness = data[6];
+    incoming.timeout = data[9];
+    incoming.icon_size = read_u16_be(data + 11);
+    eta_value = data[14];
+    directions_value = data[15];
+    large_directions_value = data[16];
+    incoming.theme_color = read_u32_be(data + 17);
+    if (version_two) {
+      show_trip_value = data[21];
+      heading_value = data[22];
+      incoming.show_trip_info = show_trip_value != 0;
+      incoming.heading_above_icon = heading_value != 0;
+    }
+  }
+  incoming.show_eta = eta_value != 0;
+  incoming.show_directions = directions_value != 0;
+  incoming.large_directions = large_directions_value != 0;
+
+  if (incoming.brightness > 100 || incoming.timeout > 4 ||
+      incoming.icon_size < 256 || incoming.icon_size > 512 ||
+      eta_value > 1 || directions_value > 1 ||
+      large_directions_value > 1 || incoming.theme_color > 0xFFFFFF ||
+      (version_two && (show_trip_value > 1 || heading_value > 1)) ||
+      (version_three && (show_trip_value > 1 || heading_value > 1))) {
+    Timber.w("Rejected invalid Navio Bridge display settings");
+    return;
+  }
+
+  display_settings = incoming;
+  persist_display_settings();
+  apply_display_settings();
+  configCallback(CF_NAV_DATA, 0, 0);
+  screen_activity(0);
+  Timber.i("Applied display settings from Navio Bridge");
+}
+
+static void load_display_settings() {
+  display_settings.brightness = prefs.getUChar(
+      "brightness", HardcodedSettings::brightness);
+  display_settings.timeout = prefs.getUChar(
+      "timeout", HardcodedSettings::screen_timeout);
+  display_settings.icon_size = prefs.getUShort(
+      "icon_size", HardcodedSettings::icon_size);
+  display_settings.show_eta = prefs.getBool(
+      "show_eta", HardcodedSettings::show_eta);
+  display_settings.show_directions = prefs.getBool(
+      "show_dirs", HardcodedSettings::show_directions);
+  display_settings.large_directions = prefs.getBool(
+      "large_dirs", HardcodedSettings::directions_size);
+  display_settings.theme_color = prefs.getUInt(
+      "theme_color", HardcodedSettings::theme_color);
+  display_settings.show_trip_info = prefs.getBool(
+      "show_trip", HardcodedSettings::show_trip_info);
+  display_settings.heading_above_icon = prefs.getBool(
+      "heading_top", HardcodedSettings::heading_above_icon);
+}
 
 static uint32_t physical_internal_ram_kb() {
 #if defined(CONFIG_IDF_TARGET_ESP32)
@@ -175,6 +314,7 @@ static void screen_timeout_task() {
 
 
 void configCallback(Config config, uint32_t a, uint32_t b) {
+  (void)b;
   switch (config) {
   case CF_NAV_DATA: {
     nav = watch.getNavigation();
@@ -199,13 +339,20 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
       sep = " ";
     }
     String navText;
-    String nl = (nav.duration == "" && nav.distance == "") ? "" : "\n";
 
     if (nav.active) {
-      if (navio_subject_get_show_arrival_time()) {
-        navText = nav.eta + nl + nav.duration + sep + nav.distance;
-      } else {
-        navText = nav.duration + sep + nav.distance;
+      if (navio_subject_get_show_arrival_time() && nav.eta != "") {
+        navText = nav.eta;
+      }
+      if (display_settings.show_trip_info) {
+        String tripText = nav.duration + sep + nav.distance;
+        if (navText != "" && tripText != "") {
+          navText += "\n";
+        }
+        navText += tripText;
+      }
+      if (navText == "") {
+        navText = " ";
       }
 
       
@@ -216,6 +363,7 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
         nav.title = nav.title + " | " + nav.speed;
       }
     } else {
+      String nl = (nav.duration == "" && nav.distance == "") ? "" : "\n";
       navText = nav.eta + nl + nav.duration + sep + nav.distance;
     }
 
@@ -243,12 +391,6 @@ void configCallback(Config config, uint32_t a, uint32_t b) {
     navio_subject_set_chronos_app_version(appVersion.c_str());
     prefs.putString("app_version", appVersion);
   } break;
-  case CF_LANG:
-    navio_subject_set_language(HardcodedSettings::language);
-    break;
-  case CF_HR24:
-    prefs.putBool("hr24", b);
-    break;
   case CF_FONT:
     navio_subject_set_theme_color(a);
     prefs.putInt("theme_color", a);
@@ -277,7 +419,6 @@ static uint8_t display_rotation_from_ui(int32_t rotation) {
 
 void navio_subject_screen_brightness_change(int32_t value) {
   (void)value;
-  // All display settings are fixed at compile time.
   apply_screen_brightness();
 }
 
@@ -319,21 +460,9 @@ void setup() {
   set_screen_brightness_level(255);
   board::after_display_init();
 
-  int brightness = HardcodedSettings::brightness;
-  int language = HardcodedSettings::language;
-  int rotation = HardcodedSettings::rotation;
-#if BOARD_ROTATION_LOCKED == 1 && BOARD_ROTATION_VALUE >= 0
-  rotation = BOARD_ROTATION_VALUE;
-#endif
-  int screen_timeout = HardcodedSettings::screen_timeout;
-  bool hr24 = HardcodedSettings::hr24;
-  int icon_size = HardcodedSettings::icon_size;
-
-  int show_time = HardcodedSettings::show_time;
-  int show_eta = HardcodedSettings::show_eta;
-  int show_directions = HardcodedSettings::show_directions;
-  int directions_size = HardcodedSettings::directions_size;
-  uint32_t theme_color = HardcodedSettings::theme_color;
+  load_display_settings();
+  int brightness = display_settings.brightness;
+  int screen_timeout_value = display_settings.timeout;
   String app_version = prefs.getString("app_version", "N/A");
 
   lvgl_port_set_screen_callbacks(screen_is_awake, screen_activity);
@@ -347,9 +476,10 @@ void setup() {
   lv_screen_load(screen_launch());
 
   watch.setConfigurationCallback(configCallback);
+  watch.setDataCallback(settingsDataCallback);
   watch.begin();
   watch.setBattery(100);
-  watch.set24Hour(hr24);
+  watch.set24Hour(false);
 
   nav_icon_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
   nav_icon_dsc.header.cf = LV_COLOR_FORMAT_A1;
@@ -386,23 +516,28 @@ void setup() {
   navio_subject_set_screen_brightness_supported(!BOARD_HAS_CUSTOM_BRIGHTNESS);
 
   navio_subject_set_chronos_app_version(app_version.c_str());
-  navio_subject_set_language(language);
+  navio_subject_set_language(0);
+  int rotation = 0;
+#if BOARD_ROTATION_LOCKED == 1 && BOARD_ROTATION_VALUE >= 0
+  rotation = BOARD_ROTATION_VALUE;
+#endif
   navio_subject_set_screen_rotation(rotation);
   navio_subject_set_screen_brightness(brightness);
-  navio_subject_set_screen_timeout(screen_timeout);
+  navio_subject_set_screen_timeout(screen_timeout_value);
 
-  if (icon_size != 0) {
-    navio_subject_set_icon_size(icon_size);
-  }
-  navio_subject_set_directions_size(directions_size);
-  navio_subject_set_show_system_time(show_time);
-  navio_subject_set_show_arrival_time(show_eta);
-  navio_subject_set_show_directions(show_directions);
+  navio_subject_set_icon_size(display_settings.icon_size);
+  navio_subject_set_directions_size(display_settings.large_directions);
+  navio_subject_set_show_system_time(false);
+  navio_subject_set_show_arrival_time(display_settings.show_eta);
+  navio_subject_set_show_directions(display_settings.show_directions);
+  nav_default_apply_navigation_layout(
+      display_settings.heading_above_icon, display_settings.show_directions,
+      display_settings.large_directions);
   // navio_subject_set_nav_icon((void *)&nav_icon_dsc);
   navio_subject_set_nav_text("Chronos");
   navio_subject_set_nav_title("navigation");
   navio_subject_set_nav_directions("nav_info");
-  navio_subject_set_theme_color(theme_color);
+  navio_subject_set_theme_color(display_settings.theme_color);
 
   Serial.println("Setup complete");
 }
@@ -413,14 +548,6 @@ void loop() {
   watch.loop();
   board::loop();
   board_screen_input_task();
-
-  String time =
-      watch.getHourZ() + watch.getTime(":%M ") + watch.getAmPmC(false);
-  navio_subject_set_system_time(time.c_str());
-
-  if (!nav.active && navio_subject_get_show_system_time()) {
-    navio_subject_set_nav_text(time.c_str());
-  }
 
   navio_subject_set_connected(watch.isConnected());
   navio_subject_set_navigation(nav.active);
