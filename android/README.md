@@ -35,7 +35,10 @@ for Bluetooth LE devices. Navio Bridge does not request or use location data.
 Open **Chronos Navio settings** in the app to change brightness, screen timeout,
 icon size, ETA visibility,
 direction visibility and size, trip-information visibility, maneuver heading
-position, and theme color. Changes are saved on the phone and sent immediately
+position, theme color, and icon dithering level. The dithering preview updates
+as you choose Off, Low, Medium, or High; the selected level is applied on the
+phone when converting notification icons and is not part of the ESP32 settings
+packet. Changes are saved on the phone and device settings are sent immediately
 when the BLE relay is connected; otherwise they are sent the next time Navio
 Bridge connects. The ESP32 stores received settings in Preferences, so they
 remain active after a reboot.
