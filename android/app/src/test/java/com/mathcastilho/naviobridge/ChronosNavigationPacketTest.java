@@ -84,6 +84,22 @@ public final class ChronosNavigationPacketTest {
     }
 
     @Test
+    public void ditheringLevelsGraduallyRenderGrayPixelsAsPatterns() {
+        int[] pixels = new int[48 * 48];
+        Arrays.fill(pixels, 0x80FFFFFF);
+
+        byte[] off = NavigationIcon.encodePixels(48, 48, pixels, 0);
+        byte[] low = NavigationIcon.encodePixels(48, 48, pixels, 1);
+        byte[] medium = NavigationIcon.encodePixels(48, 48, pixels, 2);
+        byte[] high = NavigationIcon.encodePixels(48, 48, pixels, 3);
+
+        assertEquals(48 * 48, countSetPixels(off));
+        assertTrue(countSetPixels(low) > countSetPixels(medium));
+        assertTrue(countSetPixels(medium) > countSetPixels(high));
+        assertEquals(48 * 48 / 2, countSetPixels(high));
+    }
+
+    @Test
     public void notificationGraphicOverridesGeneratedManeuverGlyph() {
         byte[] notificationIcon = new byte[NavigationIcon.BYTE_COUNT];
         notificationIcon[0] = (byte) 0xA5;
@@ -249,5 +265,13 @@ public final class ChronosNavigationPacketTest {
             }
         }
         return false;
+    }
+
+    private int countSetPixels(byte[] bytes) {
+        int count = 0;
+        for (byte value : bytes) {
+            count += Integer.bitCount(value & 0xFF);
+        }
+        return count;
     }
 }

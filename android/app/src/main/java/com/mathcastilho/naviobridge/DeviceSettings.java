@@ -15,6 +15,8 @@ final class DeviceSettings {
     static final int DEFAULT_THEME_COLOR = 0xFFFFFF;
     static final boolean DEFAULT_SHOW_TRIP_INFO = true;
     static final boolean DEFAULT_HEADING_ABOVE_ICON = false;
+    static final int DEFAULT_ICON_DITHERING_LEVEL = 2;
+    static final int ICON_DITHERING_LEVEL_COUNT = 4;
 
     int brightness = DEFAULT_BRIGHTNESS;
     int timeout = DEFAULT_TIMEOUT;
@@ -25,6 +27,7 @@ final class DeviceSettings {
     int themeColor = DEFAULT_THEME_COLOR;
     boolean showTripInfo = DEFAULT_SHOW_TRIP_INFO;
     boolean headingAboveIcon = DEFAULT_HEADING_ABOVE_ICON;
+    int iconDitheringLevel = DEFAULT_ICON_DITHERING_LEVEL;
 
     static DeviceSettings load(Context context) {
         SharedPreferences preferences = context.getSharedPreferences(
@@ -43,6 +46,10 @@ final class DeviceSettings {
                 "device_show_trip_info", DEFAULT_SHOW_TRIP_INFO);
         settings.headingAboveIcon = preferences.getBoolean(
                 "device_heading_above_icon", DEFAULT_HEADING_ABOVE_ICON);
+        settings.iconDitheringLevel = Math.max(0, Math.min(
+                preferences.getInt(
+                        "device_icon_dithering_level", DEFAULT_ICON_DITHERING_LEVEL),
+                ICON_DITHERING_LEVEL_COUNT - 1));
         return settings;
     }
 
@@ -58,6 +65,7 @@ final class DeviceSettings {
                 .putInt("device_theme_color", themeColor)
                 .putBoolean("device_show_trip_info", showTripInfo)
                 .putBoolean("device_heading_above_icon", headingAboveIcon)
+                .putInt("device_icon_dithering_level", iconDitheringLevel)
                 .remove("device_language")
                 .remove("device_rotation")
                 .remove("device_hr24")

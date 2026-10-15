@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -28,11 +29,13 @@ public final class DeviceSettingsActivity extends Activity {
     private LinearLayout content;
     private TextView brightnessValue;
     private TextView iconSizeValue;
+    private ImageView ditheringPreview;
     private SeekBar brightnessSeekBar;
     private SeekBar iconSizeSeekBar;
     private Spinner timeoutSpinner;
     private Spinner themeSpinner;
     private Spinner headingPositionSpinner;
+    private Spinner ditheringSpinner;
     private Switch etaSwitch;
     private Switch directionsSwitch;
     private Switch largeDirectionsSwitch;
@@ -122,6 +125,25 @@ public final class DeviceSettingsActivity extends Activity {
             }
         });
 
+        ditheringSpinner = addSpinner(
+                "Icon dithering level",
+                new String[]{"Off", "Low", "Medium", "High"},
+                settings.iconDitheringLevel);
+        TextView previewLabel = addLabel("Live example");
+        previewLabel.setPadding(0, dp(8), 0, dp(6));
+        ditheringPreview = new ImageView(this);
+        ditheringPreview.setBackgroundColor(0xFF000000);
+        ditheringPreview.setScaleType(ImageView.ScaleType.CENTER);
+        ditheringPreview.setContentDescription("Example navigation icon dithering preview");
+        LinearLayout.LayoutParams previewLayout = new LinearLayout.LayoutParams(
+                dp(160), dp(160));
+        previewLayout.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+        content.addView(ditheringPreview, previewLayout);
+        TextView previewDescription = addLabel(
+                "Gray route details are shown as a fixed pixel pattern on the ESP32.");
+        previewDescription.setTextSize(13);
+        updateDitheringPreview(settings.iconDitheringLevel);
+
         themeSpinner = addSpinner("Theme color", THEME_LABELS, themeIndex(settings.themeColor));
 
         saveStatus = addLabel("");
@@ -131,6 +153,10 @@ public final class DeviceSettingsActivity extends Activity {
                 position -> settings.themeColor = THEME_VALUES[position]);
         addSpinnerListener(headingPositionSpinner,
                 position -> settings.headingAboveIcon = position == 1);
+        addSpinnerListener(ditheringSpinner, position -> {
+            settings.iconDitheringLevel = position;
+            updateDitheringPreview(position);
+        }, this::saveDitheringAndRefreshIcon);
         addSwitchListener(etaSwitch, value -> settings.showEta = value);
         addSwitchListener(directionsSwitch, value -> settings.showDirections = value);
         addSwitchListener(largeDirectionsSwitch, value -> settings.largeDirections = value);
@@ -174,6 +200,10 @@ public final class DeviceSettingsActivity extends Activity {
     }
 
     private void addSpinnerListener(Spinner spinner, IntAction action) {
+        addSpinnerListener(spinner, action, this::saveAndSend);
+    }
+
+    private void addSpinnerListener(Spinner spinner, IntAction action, Runnable onChanged) {
         int initialSelection = spinner.getSelectedItemPosition();
         boolean[] receivedInitialSelection = {false};
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -184,7 +214,7 @@ public final class DeviceSettingsActivity extends Activity {
                 boolean isInitialSelection = !receivedInitialSelection[0];
                 receivedInitialSelection[0] = true;
                 if (ready && (!isInitialSelection || position != initialSelection)) {
-                    saveAndSend();
+                    onChanged.run();
                 }
             }
 
@@ -192,6 +222,20 @@ public final class DeviceSettingsActivity extends Activity {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
+    }
+
+    private void saveDitheringAndRefreshIcon() {
+        settings.save(this);
+        sendBroadcast(new android.content.Intent(
+                NavigationNotificationListener.ACTION_RELAY_CURRENT)
+                .setPackage(getPackageName()));
+        saveStatus.setText("Saved on phone; current navigation icon refreshed.");
+    }
+
+    private void updateDitheringPreview(int level) {
+        if (ditheringPreview != null) {
+            ditheringPreview.setImageBitmap(NavigationIcon.createDitheringPreview(level));
+        }
     }
 
     private void addSwitchListener(Switch control, BooleanAction action) {
